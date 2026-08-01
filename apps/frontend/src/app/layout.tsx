@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ACCESSIBILITY_CONSTANTS } from '@cms/accessibility';
+import { AccessibilityToolbar } from '@/components/accessibility/AccessibilityToolbar';
+import { CommandPalette } from '@/components/ui/CommandPalette';
 
 export const metadata: Metadata = {
-  title: 'thapasandip.com.np - Platform-Driven Engine CMS',
-  description: 'Enterprise Backend-Driven Personal Website & CMS Platform',
+  title: 'thapasandip.com.np - Enterprise Platform-Driven CMS',
+  description: 'Enterprise Backend-Driven Personal Website & Knowledge Management System',
 };
 
 export default function RootLayout({
@@ -23,6 +25,8 @@ export default function RootLayout({
           Skip to main content
         </a>
         <div id={ACCESSIBILITY_CONSTANTS.LIVE_ANNOUNCER_ID} className="sr-only" aria-live="polite" aria-atomic="true" />
+        <CommandPalette />
+        <AccessibilityToolbar />
         <main id={ACCESSIBILITY_CONSTANTS.MAIN_CONTENT_ID}>
           {children}
         </main>
