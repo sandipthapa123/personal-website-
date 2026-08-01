@@ -8,10 +8,11 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm --workspace=apps/backend run build && npm --workspace=apps/frontend run build",
+    "build:packages": "npm --workspace=packages/constants run build && npm --workspace=packages/shared-types run build && npm --workspace=packages/ui-contracts run build && npm --workspace=packages/validation run build && npm --workspace=packages/design-tokens run build && npm --workspace=packages/accessibility run build && npm --workspace=packages/utilities run build && npm --workspace=packages/api-client run build",
+    "build": "npm run build:packages && npm --workspace=apps/backend run build && npm --workspace=apps/frontend run build",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "dev:backend": "npm --workspace=apps/backend run start:dev",
+    "dev:backend": "npm run build:packages && npm --workspace=apps/backend run start:dev",
     "dev:frontend": "npm --workspace=apps/frontend run dev",
     "db:migrate": "npm --workspace=apps/backend run db:migrate",
     "db:seed": "npm --workspace=apps/backend run db:seed"

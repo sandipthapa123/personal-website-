@@ -2,49 +2,54 @@
  * @cms/constants - System Enums, Workflow States, and Permission Actions
  */
 
-export enum ContentStatus {
-  DRAFT = 'DRAFT',
-  PREVIEW = 'PREVIEW',
-  REVIEW = 'REVIEW',
-  APPROVED = 'APPROVED',
-  SCHEDULED = 'SCHEDULED',
-  PUBLISHED = 'PUBLISHED',
-  ARCHIVED = 'ARCHIVED',
-}
+export const ContentStatus = {
+  DRAFT: 'DRAFT',
+  PREVIEW: 'PREVIEW',
+  REVIEW: 'REVIEW',
+  APPROVED: 'APPROVED',
+  SCHEDULED: 'SCHEDULED',
+  PUBLISHED: 'PUBLISHED',
+  ARCHIVED: 'ARCHIVED',
+} as const;
+export type ContentStatus = typeof ContentStatus[keyof typeof ContentStatus];
 
-export enum UserStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  SUSPENDED = 'SUSPENDED',
-}
+export const UserStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  SUSPENDED: 'SUSPENDED',
+} as const;
+export type UserStatus = typeof UserStatus[keyof typeof UserStatus];
 
-export enum SystemRoles {
-  SUPER_ADMIN = 'SUPER_ADMIN',
-  TENANT_ADMIN = 'TENANT_ADMIN',
-  EDITOR = 'EDITOR',
-  AUTHOR = 'AUTHOR',
-  VIEWER = 'VIEWER',
-}
+export const SystemRoles = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  TENANT_ADMIN: 'TENANT_ADMIN',
+  EDITOR: 'EDITOR',
+  AUTHOR: 'AUTHOR',
+  VIEWER: 'VIEWER',
+} as const;
+export type SystemRoles = typeof SystemRoles[keyof typeof SystemRoles];
 
-export enum LayoutRegionKeys {
-  HEADER = 'header',
-  SIDEBAR = 'sidebar',
-  MAIN = 'main',
-  FOOTER = 'footer',
-}
+export const LayoutRegionKeys = {
+  HEADER: 'header',
+  SIDEBAR: 'sidebar',
+  MAIN: 'main',
+  FOOTER: 'footer',
+} as const;
+export type LayoutRegionKeys = typeof LayoutRegionKeys[keyof typeof LayoutRegionKeys];
 
-export enum BlockTypes {
-  HERO = 'HERO',
-  TIMELINE = 'TIMELINE',
-  PUBLICATION_LIST = 'PUBLICATION_LIST',
-  RESEARCH_LIST = 'RESEARCH_LIST',
-  FAQ = 'FAQ',
-  CONTACT_FORM = 'CONTACT_FORM',
-  CARD_GRID = 'CARD_GRID',
-  STATS = 'STATS',
-  TEXT_BLOCK = 'TEXT_BLOCK',
-  GALLERY = 'GALLERY',
-}
+export const BlockTypes = {
+  HERO: 'HERO',
+  TIMELINE: 'TIMELINE',
+  PUBLICATION_LIST: 'PUBLICATION_LIST',
+  RESEARCH_LIST: 'RESEARCH_LIST',
+  FAQ: 'FAQ',
+  CONTACT_FORM: 'CONTACT_FORM',
+  CARD_GRID: 'CARD_GRID',
+  STATS: 'STATS',
+  TEXT_BLOCK: 'TEXT_BLOCK',
+  GALLERY: 'GALLERY',
+} as const;
+export type BlockTypes = typeof BlockTypes[keyof typeof BlockTypes];
 
 export const PERMISSION_ACTIONS = {
   PAGES_READ: 'pages:read',
