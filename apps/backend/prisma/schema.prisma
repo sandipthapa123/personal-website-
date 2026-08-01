@@ -1,0 +1,472 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ----------------------------------------------------
+// 1. TENANT & PLATFORM SYSTEM
+// ----------------------------------------------------
+
+model Tenant {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique
+  domain      String   @unique
+  name        String
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  settings       TenantSetting[]
+  tokens         DesignToken[]
+  pages          Page[]
+  menus          NavigationMenu[]
+  media          MediaFile[]
+  blocks         Block[]
+  posts          BlogPost[]
+  workflows      WorkflowDefinition[]
+}
+
+model TenantSetting {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  category    String   // site, theme, seo, security, accessibility, analytics, storage
+  key         String
+  value       Json
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, category, key])
+}
+
+model FeatureFlag {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String?  @db.Uuid
+  key         String   @unique
+  name        String
+  description String?
+  is_enabled  Boolean  @default(false)
+  rules_json  Json?
+  updated_at  DateTime @updatedAt
+}
+
+// ----------------------------------------------------
+// 2. AUTH, ROLES & POLICY-DRIVEN PERMISSIONS
+// ----------------------------------------------------
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  email         String     @unique
+  password_hash String
+  first_name    String
+  last_name     String
+  avatar_url    String?
+  status        UserStatus @default(ACTIVE)
+  totp_secret   String?
+  totp_enabled  Boolean    @default(false)
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
+
+  user_roles    UserRole[]
+  audit_logs    AuditLog[]
+  sessions      Session[]
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  is_system   Boolean  @default(false)
+
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  action      String   @unique // e.g. pages:publish, media:upload
+  module      String
+  description String?
+
+  roles       RolePermission[]
+  policies    Policy[]
+}
+
+model RolePermission {
+  role_id       String     @db.Uuid
+  permission_id String     @db.Uuid
+  role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@id([role_id, permission_id])
+}
+
+model Policy {
+  id            String     @id @default(uuid()) @db.Uuid
+  permission_id String     @db.Uuid
+  name          String
+  condition     Json
+  permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+}
+
+model UserRole {
+  user_id String @db.Uuid
+  role_id String @db.Uuid
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role    Role   @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@id([user_id, role_id])
+}
+
+model Session {
+  id            String   @id @default(uuid()) @db.Uuid
+  user_id       String   @db.Uuid
+  refresh_token String   @unique
+  user_agent    String?
+  ip_address    String?
+  expires_at    DateTime
+  created_at    DateTime @default(now())
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String?  @db.Uuid
+  user_id     String?  @db.Uuid
+  action      String
+  entity_type String
+  entity_id   String?
+  payload     Json?
+  ip_address  String?
+  created_at  DateTime @default(now())
+  user        User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+}
+
+// ----------------------------------------------------
+// 3. DESIGN TOKENS ENGINE
+// ----------------------------------------------------
+
+model DesignToken {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenant_id              String   @db.Uuid
+  category               String   // colors, typography, spacing, radius, elevation
+  token_name             String   // e.g. color-primary-500
+  token_value            String
+  dark_value             String?
+  unit                   String?
+  tenant                 Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@unique([tenant_id, category, token_name])
+}
+
+// ----------------------------------------------------
+// 4. WORKFLOW ORCHESTRATOR ENGINE
+// ----------------------------------------------------
+
+model WorkflowDefinition {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  entity_type String   // page, blog_post, block
+  name        String
+  states_json Json     // State machine states & transition rules
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// 5. LAYOUTS, REGIONS, BLOCKS & PAGES
+// ----------------------------------------------------
+
+enum ContentStatus {
+  DRAFT
+  PREVIEW
+  REVIEW
+  APPROVED
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+model Layout {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  slug        String   @unique
+  regions     Region[]
+  pages       Page[]
+}
+
+model Region {
+  id        String   @id @default(uuid()) @db.Uuid
+  layout_id String   @db.Uuid
+  key       String   // header, sidebar, main, footer
+  name      String
+  layout    Layout   @relation(fields: [layout_id], references: [id], onDelete: Cascade)
+
+  page_blocks PageRegionBlock[]
+}
+
+model BlockDefinition {
+  id              String   @id @default(uuid()) @db.Uuid
+  type            String   @unique
+  name            String
+  category        String
+  prop_schema     Json
+  default_props   Json
+  allowed_regions String[]
+  blocks          Block[]
+}
+
+model Block {
+  id                  String          @id @default(uuid()) @db.Uuid
+  tenant_id           String          @db.Uuid
+  block_definition_id String          @db.Uuid
+  name                String
+  json_config         Json
+  style_config        Json?
+  visibility_config   Json?
+  permission_rules    Json?
+  animations_config   Json?
+  responsive_config   Json?
+  status              ContentStatus   @default(DRAFT)
+  version             Int             @default(1)
+  deleted_at          DateTime?
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+
+  tenant              Tenant          @relation(fields: [tenant_id], references: [id])
+  definition          BlockDefinition @relation(fields: [block_definition_id], references: [id])
+  versions            BlockVersion[]
+  page_placements     PageRegionBlock[]
+}
+
+model BlockVersion {
+  id           String   @id @default(uuid()) @db.Uuid
+  block_id     String   @db.Uuid
+  version      Int
+  json_config  Json
+  style_config Json?
+  created_by   String?
+  created_at   DateTime @default(now())
+  block        Block    @relation(fields: [block_id], references: [id], onDelete: Cascade)
+}
+
+model Page {
+  id            String        @id @default(uuid()) @db.Uuid
+  tenant_id     String        @db.Uuid
+  layout_id     String        @db.Uuid
+  slug          String
+  title         String
+  locale        String        @default("en")
+  status        ContentStatus @default(DRAFT)
+  version       Int           @default(1)
+  scheduled_at  DateTime?
+  published_at  DateTime?
+  seo_metadata  Json?
+  deleted_at    DateTime?
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenant_id], references: [id])
+  layout        Layout        @relation(fields: [layout_id], references: [id])
+  versions      PageVersion[]
+  region_blocks PageRegionBlock[]
+
+  @@unique([tenant_id, slug, locale])
+}
+
+model PageVersion {
+  id          String   @id @default(uuid()) @db.Uuid
+  page_id     String   @db.Uuid
+  version     Int
+  layout_json Json
+  created_by  String?
+  created_at  DateTime @default(now())
+  page        Page     @relation(fields: [page_id], references: [id], onDelete: Cascade)
+}
+
+model PageRegionBlock {
+  id        String @id @default(uuid()) @db.Uuid
+  page_id   String @db.Uuid
+  region_id String @db.Uuid
+  block_id  String @db.Uuid
+  order     Int
+
+  page      Page   @relation(fields: [page_id], references: [id], onDelete: Cascade)
+  region    Region @relation(fields: [region_id], references: [id], onDelete: Cascade)
+  block     Block  @relation(fields: [block_id], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// 6. NAVIGATION & MEDIA
+// ----------------------------------------------------
+
+model NavigationMenu {
+  id         String               @id @default(uuid()) @db.Uuid
+  tenant_id  String               @db.Uuid
+  location   String
+  name       String
+  tenant     Tenant               @relation(fields: [tenant_id], references: [id])
+  items      NavigationMenuItem[]
+}
+
+model NavigationMenuItem {
+  id           String             @id @default(uuid()) @db.Uuid
+  menu_id      String             @db.Uuid
+  parent_id    String?            @db.Uuid
+  label        String
+  url          String
+  icon         String?
+  target       String             @default("_self")
+  order        Int
+  visibility   Json?
+  menu         NavigationMenu     @relation(fields: [menu_id], references: [id], onDelete: Cascade)
+  parent       NavigationMenuItem?@relation("MenuHierarchy", fields: [parent_id], references: [id])
+  children     NavigationMenuItem[]@relation("MenuHierarchy")
+}
+
+model MediaFile {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenant_id      String   @db.Uuid
+  filename       String
+  original_name  String
+  mime_type      String
+  size_bytes     BigInt
+  storage_key    String   @unique
+  folder         String   @default("/")
+  dimensions     Json?
+  variants_json  Json?
+  alt_text       String?
+  caption        String?
+  created_at     DateTime @default(now())
+
+  tenant         Tenant   @relation(fields: [tenant_id], references: [id])
+}
+
+// ----------------------------------------------------
+// 7. CONTENT DOMAINS (BLOG, PUBLICATIONS, RESEARCH)
+// ----------------------------------------------------
+
+model BlogPost {
+  id           String        @id @default(uuid()) @db.Uuid
+  tenant_id    String        @db.Uuid
+  slug         String        @unique
+  title        String
+  summary      String?
+  content      String        @db.Text
+  locale       String        @default("en")
+  status       ContentStatus @default(DRAFT)
+  reading_time Int           @default(0)
+  published_at DateTime?
+  seo_metadata Json?
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenant_id], references: [id])
+  categories   PostCategory[]
+  tags         PostTag[]
+}
+
+model Category {
+  id    String         @id @default(uuid()) @db.Uuid
+  name  String         @unique
+  slug  String         @unique
+  posts PostCategory[]
+}
+
+model Tag {
+  id    String    @id @default(uuid()) @db.Uuid
+  name  String    @unique
+  slug  String    @unique
+  posts PostTag[]
+}
+
+model PostCategory {
+  post_id     String   @db.Uuid
+  category_id String   @db.Uuid
+  post        BlogPost @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  @@id([post_id, category_id])
+}
+
+model PostTag {
+  post_id String   @db.Uuid
+  tag_id  String   @db.Uuid
+  post    BlogPost @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  tag     Tag      @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+  @@id([post_id, tag_id])
+}
+
+model Publication {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenant_id      String?   @db.Uuid
+  title          String
+  authors        String[]
+  abstract       String    @db.Text
+  journal        String?
+  publisher      String?
+  doi            String?   @unique
+  citation_apa   String?
+  citation_mla   String?
+  citation_chi   String?
+  published_date DateTime?
+  pdf_url        String?
+  created_at     DateTime  @default(now())
+}
+
+model ResearchProject {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String?  @db.Uuid
+  title       String
+  slug        String   @unique
+  status      String
+  description String   @db.Text
+  partners    String[]
+  timeline    String?
+  outputs     Json?
+  created_at  DateTime @default(now())
+}
+
+// ----------------------------------------------------
+// 8. PLUGINS, ANALYTICS & SEARCH INDEX
+// ----------------------------------------------------
+
+model Plugin {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @unique
+  version      String
+  is_active    Boolean  @default(false)
+  config_json  Json?
+  installed_at DateTime @default(now())
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenant_id  String?  @db.Uuid
+  event_type String
+  path       String
+  referrer   String?
+  query      String?
+  ip_hash    String?
+  timestamp  DateTime @default(now())
+}
+
+model SearchIndex {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String?  @db.Uuid
+  entity_type String
+  entity_id   String   @db.Uuid
+  title       String
+  content     String   @db.Text
+  locale      String   @default("en")
+  url         String
+  updated_at  DateTime @updatedAt
+
+  @@unique([entity_type, entity_id])
+}

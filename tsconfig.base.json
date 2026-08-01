@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@cms/shared-types": ["packages/shared-types/src"],
+      "@cms/ui-contracts": ["packages/ui-contracts/src"],
+      "@cms/validation": ["packages/validation/src"],
+      "@cms/constants": ["packages/constants/src"],
+      "@cms/design-tokens": ["packages/design-tokens/src"],
+      "@cms/accessibility": ["packages/accessibility/src"],
+      "@cms/api-client": ["packages/api-client/src"],
+      "@cms/utilities": ["packages/utilities/src"]
+    }
+  }
+}

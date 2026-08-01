@@ -1,0 +1,53 @@
+name: CMS Platform CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cms_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js Environment
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: Run Vulnerability Audit
+      run: npm audit --audit-level=high || true
+
+    - name: Run Workspace Type Checking & Linting
+      run: npm run lint --workspaces --if-present
+
+    - name: Run Automated Test Suites
+      run: npm run test --workspaces --if-present
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/cms_test_db?schema=public"
+
+    - name: Build All Packages & Apps
+      run: npm run build
