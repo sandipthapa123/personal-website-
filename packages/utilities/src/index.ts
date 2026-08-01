@@ -1,6 +1,4 @@
-/**
- * Utility functions for slugifying, formatting, and safety helpers
- */
+export * from './date-converter';
 
 export function slugify(text: string): string {
   return text
