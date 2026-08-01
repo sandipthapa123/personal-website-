@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ACCESSIBILITY_CONSTANTS } from '@cms/accessibility';
-import { AccessibilityToolbar } from '@/components/accessibility/AccessibilityToolbar';
-import { CommandPalette } from '@/components/ui/CommandPalette';
+import { AccessibilityToolbar } from '../components/accessibility/AccessibilityToolbar';
+import { CommandPalette } from '../components/ui/CommandPalette';
 
 export const metadata: Metadata = {
   title: 'thapasandip.com.np - Enterprise Platform-Driven CMS',
