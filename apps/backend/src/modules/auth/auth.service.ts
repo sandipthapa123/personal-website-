@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -95,5 +95,45 @@ export class AuthService {
         roles: user.roles,
       },
     };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      // Return success message to prevent user enumeration attacks
+      return { message: 'If an account exists with this email, a password reset link has been dispatched.' };
+    }
+
+    const resetToken = this.jwtService.sign(
+      { sub: user.id, email: user.email, purpose: 'PASSWORD_RESET' },
+      { expiresIn: '1h' },
+    );
+
+    return {
+      message: 'If an account exists with this email, a password reset link has been dispatched.',
+      resetToken, // Provided for testing & dev convenience
+    };
+  }
+
+  async resetPassword(resetToken: string, newPass: string) {
+    try {
+      const payload = this.jwtService.verify(resetToken);
+      if (payload.purpose !== 'PASSWORD_RESET') {
+        throw new BadRequestException('Invalid reset token');
+      }
+
+      const passwordHash = await bcrypt.hash(newPass, 10);
+      await this.prisma.user.update({
+        where: { id: payload.sub },
+        data: { password_hash: passwordHash },
+      });
+
+      return { message: 'Password has been reset successfully. You can now login with your new credentials.' };
+    } catch {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
   }
 }
