@@ -1,46 +1,59 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { compileTokensToCss, DEFAULT_DESIGN_TOKENS } from '@cms/design-tokens';
+import { compileTokensToCss, DEFAULT_DESIGN_TOKENS, ITokenInput } from '@cms/design-tokens';
 import { IDesignToken } from '@cms/shared-types';
 
 @Injectable()
 export class DesignTokensService {
   constructor(private prisma: PrismaService) {}
 
-  async getCompiledCss(tenantId: string): Promise<string> {
-    let tokens = await this.prisma.designToken.findMany({
-      where: { tenant_id: tenantId },
+  async getActiveTokens(tenantId: string): Promise<{ css: string; tokens: ITokenInput[] }> {
+    const record = await this.prisma.designTokenSet.findFirst({
+      where: {
+        tenant_id: tenantId,
+        is_active: true,
+      },
     });
 
-    if (tokens.length === 0) {
-      // Seed default tokens
-      const created = await Promise.all(
-        DEFAULT_DESIGN_TOKENS.map((dt) =>
-          this.prisma.designToken.create({
-            data: {
-              tenant_id: tenantId,
-              category: dt.category,
-              token_name: dt.tokenName,
-              token_value: dt.tokenValue,
-              dark_value: dt.darkValue,
-              unit: dt.unit,
-            },
-          }),
-        ),
-      );
-      tokens = created;
+    if (!record) {
+      const css = compileTokensToCss(DEFAULT_DESIGN_TOKENS);
+      return { css, tokens: DEFAULT_DESIGN_TOKENS };
     }
 
-    const mapped: IDesignToken[] = tokens.map((t) => ({
-      id: t.id,
-      tenantId: t.tenant_id,
+    const rawTokens = (record.tokens as any[]) || [];
+    const css = compileTokensToCss(rawTokens as ITokenInput[]);
+    return {
+      css,
+      tokens: rawTokens as ITokenInput[],
+    };
+  }
+
+  async setTokens(tenantId: string, name: string, tokens: ITokenInput[]) {
+    await this.prisma.designTokenSet.updateMany({
+      where: { tenant_id: tenantId },
+      data: { is_active: false },
+    });
+
+    const mapped = tokens.map((t: any) => ({
       category: t.category,
-      tokenName: t.token_name,
-      tokenValue: t.token_value,
-      darkValue: t.dark_value || undefined,
-      unit: t.unit || undefined,
+      tokenName: t.tokenName || t.name,
+      tokenValue: t.tokenValue || t.value,
+      darkValue: t.darkValue,
+      unit: t.unit,
     }));
 
-    return compileTokensToCss(mapped);
+    return this.prisma.designTokenSet.create({
+      data: {
+        tenant_id: tenantId,
+        name,
+        tokens: mapped as any,
+        is_active: true,
+      },
+    });
+  }
+
+  async getCompiledCss(tenantId: string): Promise<string> {
+    const res = await this.getActiveTokens(tenantId);
+    return res.css;
   }
 }

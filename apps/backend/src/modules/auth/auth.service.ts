@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -41,9 +41,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const roles = user.user_roles.map((ur) => ur.role.name);
-    const permissions = user.user_roles.flatMap((ur) =>
-      ur.role.permissions.map((rp) => rp.permission.action),
+    const roles = user.user_roles.map((ur: any) => ur.role.name);
+    const permissions = user.user_roles.flatMap((ur: any) =>
+      ur.role.permissions.map((rp: any) => rp.permission.action),
     );
 
     return {
@@ -73,7 +73,6 @@ export class AuthService {
       expiresIn: '7d',
     });
 
-    // Record session
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 

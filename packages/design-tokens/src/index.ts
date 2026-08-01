@@ -1,5 +1,7 @@
 import { IDesignToken } from '@cms/shared-types';
 
+export type ITokenInput = IDesignToken | Omit<IDesignToken, 'id' | 'tenantId'>;
+
 export const DEFAULT_DESIGN_TOKENS: Omit<IDesignToken, 'id' | 'tenantId'>[] = [
   { category: 'colors', tokenName: 'color-primary-500', tokenValue: '#0f172a', darkValue: '#f8fafc' },
   { category: 'colors', tokenName: 'color-primary-600', tokenValue: '#0284c7', darkValue: '#38bdf8' },
@@ -13,7 +15,7 @@ export const DEFAULT_DESIGN_TOKENS: Omit<IDesignToken, 'id' | 'tenantId'>[] = [
 /**
  * Compiles array of design tokens into root CSS custom properties
  */
-export function compileTokensToCss(tokens: IDesignToken[]): string {
+export function compileTokensToCss(tokens: ITokenInput[]): string {
   let lightCss = ':root {\n';
   let darkCss = '@media (prefers-color-scheme: dark) {\n  :root {\n';
 

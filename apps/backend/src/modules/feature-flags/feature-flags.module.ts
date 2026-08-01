@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
-import { FeatureFlagService } from './feature-flags.service';
-import { FeatureFlagController } from './feature-flags.controller';
+import { FeatureFlagsService } from './feature-flags.service';
+import { FeatureFlagsController } from './feature-flags.controller';
+import { PrismaModule } from '../../database/prisma.module';
 
 @Module({
-  controllers: [FeatureFlagController],
-  providers: [FeatureFlagService],
-  exports: [FeatureFlagService],
+  imports: [PrismaModule],
+  providers: [FeatureFlagsService],
+  controllers: [FeatureFlagsController],
+  exports: [FeatureFlagsService],
 })
-export class FeatureFlagModule {}
+export class FeatureFlagsModule {}
