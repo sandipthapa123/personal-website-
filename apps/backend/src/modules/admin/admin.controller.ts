@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Body, Query, Res, HttpStatus, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Res, Req, HttpStatus, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { PrismaService } from '../../database/prisma.service';
 import { AdminService, IDashboardWidget } from './admin.service';
 import { formatDualCalendarDate } from '@cms/utilities';
@@ -15,20 +15,34 @@ export class AdminController {
 
   @Get('admin')
   @Get('admin/')
-  @ApiOperation({ summary: 'Auto-redirect http://localhost:4000/admin to /admin/login' })
-  redirectToLogin(@Res() res: Response) {
+  @ApiOperation({ summary: 'Auto-redirect http://localhost:4000/admin to /admin/login or /admin/dashboard' })
+  redirectToLogin(@Req() req: Request, @Res() res: Response) {
+    const cookie = req.headers.cookie || '';
+    if (cookie.includes('admin_logged_in=true')) {
+      return res.redirect('/admin/dashboard');
+    }
     return res.redirect('/admin/login');
   }
 
   @Get('admin/login')
   @ApiOperation({ summary: 'Backend-Served Admin Login HTML Page' })
-  getBackendAdminLoginPage(@Res() res: Response) {
+  getBackendAdminLoginPage(@Req() req: Request, @Res() res: Response) {
+    const cookie = req.headers.cookie || '';
+    if (cookie.includes('admin_logged_in=true')) {
+      return res.redirect('/admin/dashboard');
+    }
+
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Backend Admin Login | Sandip Thapa CMS Engine</title>
+  <script>
+    if (sessionStorage.getItem('cms_token') || localStorage.getItem('admin_logged_in') === 'true') {
+      window.location.href = '/admin/dashboard';
+    }
+  </script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: #090d16; color: #f1f5f9; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
@@ -94,12 +108,14 @@ export class AdminController {
 
         if (res.ok && data.accessToken) {
           sessionStorage.setItem('cms_token', data.accessToken);
+          localStorage.setItem('admin_logged_in', 'true');
+          document.cookie = "admin_logged_in=true; path=/; max-age=86400";
           status.className = 'status success';
           status.style.display = 'block';
-          status.innerText = '✓ Authenticated! Loading Backend Dashboard...';
+          status.innerText = '[Success] Authenticated! Redirecting to Enterprise Dashboard...';
           setTimeout(() => {
             window.location.href = '/admin/dashboard';
-          }, 800);
+          }, 400);
         } else {
           throw new Error(data.message || 'Login failed');
         }
@@ -228,6 +244,7 @@ export class AdminController {
       <button class="btn-cmd" onclick="toggleCmdModal()">Ctrl+K Command Palette</button>
       <a href="/admin/editor" class="btn btn-primary" style="text-decoration:none;">Visual Block Builder</a>
       <span class="user-badge">SUPER_ADMIN</span>
+      <button class="btn btn-secondary" onclick="handleAdminLogout()">Logout</button>
     </div>
   </header>
 
@@ -445,6 +462,13 @@ export class AdminController {
   </div>
 
   <script>
+    function handleAdminLogout() {
+      sessionStorage.removeItem('cms_token');
+      localStorage.removeItem('admin_logged_in');
+      document.cookie = "admin_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      window.location.href = '/admin/login';
+    }
+
     function showTab(tabId) {
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
