@@ -3,15 +3,16 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 
 @ApiTags('auth')
-@Controller('api/v1/auth')
+@Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate user with email and password' })
-  async login(@Body() body: { email: string; pass: string }) {
-    const user = await this.authService.validateUser(body.email, body.pass);
+  async login(@Body() body: { email: string; pass?: string; password?: string }) {
+    const passwordToUse = body.password || body.pass || '';
+    const user = await this.authService.validateUser(body.email, passwordToUse);
     return this.authService.login(user);
   }
 
