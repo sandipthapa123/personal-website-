@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import { AuthorProfileCard } from '../components/content/AuthorProfileCard';
 import { SocialShareButtons } from '../components/content/SocialShareButtons';
 
@@ -15,6 +16,27 @@ async function getBackendRenderSchema() {
   }
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  const schema = await getBackendRenderSchema();
+  const seo = (schema?.seo || {}) as Record<string, any>;
+
+  return {
+    title: seo.metaTitle || 'Sandip Thapa | Academic Research, Law & Accessibility',
+    description:
+      seo.metaDescription ||
+      'Personal CMS Platform of Sandip Thapa covering Legal Research, Disability Rights, Human Rights, Literature, and Academic Publications.',
+    alternates: {
+      canonical: seo.canonicalUrl || 'https://thapasandip.com.np',
+    },
+    openGraph: {
+      title: seo.metaTitle || 'Sandip Thapa | Academic Research, Law & Accessibility',
+      description: seo.metaDescription,
+      url: seo.canonicalUrl || 'https://thapasandip.com.np',
+      images: seo.openGraphImage ? [{ url: seo.openGraphImage }] : [],
+    },
+  };
+}
+
 export default async function HomePage() {
   const schema = await getBackendRenderSchema();
   const mainBlocks = schema?.layout?.regions?.main || [];
@@ -22,7 +44,7 @@ export default async function HomePage() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-12 my-6">
-      {/* 12-Section Backend-Driven Flow */}
+      {/* 14-Section Backend-Driven Flow */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Main Content Area */}
         <div className="lg:col-span-3 space-y-12">
