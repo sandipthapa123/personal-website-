@@ -226,20 +226,20 @@ export class AdminController {
     </div>
     <div class="header-actions">
       <button class="btn-cmd" onclick="toggleCmdModal()">Ctrl+K Command Palette</button>
-      <a href="/admin/editor" class="btn btn-primary" style="text-decoration:none;">✏️ Visual Block Builder</a>
+      <a href="/admin/editor" class="btn btn-primary" style="text-decoration:none;">Visual Block Builder</a>
       <span class="user-badge">SUPER_ADMIN</span>
     </div>
   </header>
 
   <nav class="nav-bar">
-    <button class="nav-btn active" onclick="showTab('dashboard')">📊 Dashboard &amp; Health</button>
-    <button class="nav-btn" onclick="showTab('content')">📝 Content Management</button>
-    <button class="nav-btn" onclick="showTab('menus')">🧭 Navigation Menu Builder</button>
-    <button class="nav-btn" onclick="showTab('media')">🖼 Media &amp; File Manager</button>
-    <button class="nav-btn" onclick="showTab('users')">👥 Users &amp; Policy Guards</button>
-    <button class="nav-btn" onclick="showTab('seo')">🔍 SEO &amp; Redirect Manager</button>
-    <button class="nav-btn" onclick="showTab('system')">⚡ System Operations &amp; Cache</button>
-    <button class="nav-btn" onclick="showTab('settings')">⚙ Platform Settings</button>
+    <button class="nav-btn active" onclick="showTab('dashboard')">Dashboard &amp; Health</button>
+    <button class="nav-btn" onclick="showTab('content')">Content Management</button>
+    <button class="nav-btn" onclick="showTab('menus')">Navigation Menu Builder</button>
+    <button class="nav-btn" onclick="showTab('media')">Media &amp; File Manager</button>
+    <button class="nav-btn" onclick="showTab('users')">Users &amp; Policy Guards</button>
+    <button class="nav-btn" onclick="showTab('seo')">SEO &amp; Redirect Manager</button>
+    <button class="nav-btn" onclick="showTab('system')">System Operations &amp; Cache</button>
+    <button class="nav-btn" onclick="showTab('settings')">Platform Settings</button>
   </nav>
 
   <main>
@@ -389,10 +389,10 @@ export class AdminController {
       <div class="card">
         <div class="card-title">301 Redirect Manager &amp; XML Sitemaps</div>
         <div style="display:flex; gap:12px; margin-bottom:16px;">
-          <a href="/sitemap.xml" target="_blank" class="btn btn-secondary" style="text-decoration:none;">📄 sitemap.xml</a>
-          <a href="/news-sitemap.xml" target="_blank" class="btn btn-secondary" style="text-decoration:none;">📰 news-sitemap.xml</a>
-          <a href="/robots.txt" target="_blank" class="btn btn-secondary" style="text-decoration:none;">🤖 robots.txt</a>
-          <a href="/rss.xml" target="_blank" class="btn btn-secondary" style="text-decoration:none;">📡 rss.xml</a>
+          <a href="/sitemap.xml" target="_blank" class="btn btn-secondary" style="text-decoration:none;">sitemap.xml</a>
+          <a href="/news-sitemap.xml" target="_blank" class="btn btn-secondary" style="text-decoration:none;">news-sitemap.xml</a>
+          <a href="/robots.txt" target="_blank" class="btn btn-secondary" style="text-decoration:none;">robots.txt</a>
+          <a href="/rss.xml" target="_blank" class="btn btn-secondary" style="text-decoration:none;">rss.xml</a>
         </div>
       </div>
     </div>
@@ -436,10 +436,10 @@ export class AdminController {
     <div class="cmd-box">
       <input type="text" id="cmdQuery" class="cmd-input" placeholder="Type a command or page name (e.g. Visual Builder, Articles, SEO)..." oninput="filterCmdItems()" />
       <div class="cmd-list" id="cmdList">
-        <div class="cmd-item" onclick="window.location.href='/admin/editor'"><span>✏️ Open Visual Block Builder</span><span style="font-size:10px; color:#94a3b8;">/admin/editor</span></div>
-        <div class="cmd-item" onclick="showTab('content'); toggleCmdModal();"><span>📝 Manage Articles &amp; Research</span><span style="font-size:10px; color:#94a3b8;">Content Tab</span></div>
-        <div class="cmd-item" onclick="showTab('seo'); toggleCmdModal();"><span>🔍 View SEO &amp; Sitemaps</span><span style="font-size:10px; color:#94a3b8;">SEO Tab</span></div>
-        <div class="cmd-item" onclick="showTab('system'); toggleCmdModal();"><span>⚡ Flush Cache &amp; System Health</span><span style="font-size:10px; color:#94a3b8;">System Tab</span></div>
+        <div class="cmd-item" onclick="window.location.href='/admin/editor'"><span>Open Visual Block Builder</span><span style="font-size:10px; color:#94a3b8;">/admin/editor</span></div>
+        <div class="cmd-item" onclick="showTab('content'); toggleCmdModal();"><span>Manage Articles &amp; Research</span><span style="font-size:10px; color:#94a3b8;">Content Tab</span></div>
+        <div class="cmd-item" onclick="showTab('seo'); toggleCmdModal();"><span>View SEO &amp; Sitemaps</span><span style="font-size:10px; color:#94a3b8;">SEO Tab</span></div>
+        <div class="cmd-item" onclick="showTab('system'); toggleCmdModal();"><span>Flush Cache &amp; System Health</span><span style="font-size:10px; color:#94a3b8;">System Tab</span></div>
       </div>
     </div>
   </div>
@@ -456,7 +456,7 @@ export class AdminController {
       const msg = document.getElementById('statusMsg');
       msg.className = 'msg msg-success';
       msg.style.display = 'block';
-      msg.innerText = '✓ ' + text;
+      msg.innerText = '[Success] ' + text;
       setTimeout(() => { msg.style.display = 'none'; }, 3500);
     }
 
