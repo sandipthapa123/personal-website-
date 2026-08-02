@@ -2,21 +2,51 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { IPageRenderSchema, IBlockInstance } from '@cms/shared-types';
 import { ContentStatus } from '@cms/constants';
-import { formatDualCalendarDate } from '@cms/utilities';
 
 @Injectable()
 export class RendererService {
+  private readonly KNOWN_SECTIONS_WITH_CONTENT = new Set([
+    'home',
+    '',
+    '/',
+    'about',
+    'about/biography',
+    'about/education',
+    'about/experience',
+    'about/skills',
+    'about/resume',
+    'articles',
+    'articles/categories',
+    'research',
+    'research/projects',
+    'publications',
+    'publications/journal-articles',
+    'poems',
+    'poems/collections',
+    'projects',
+    'services',
+    'services/legal-research',
+    'testimonials',
+    'faq',
+    'contact',
+    'dashboard',
+  ]);
+
   constructor(private prisma: PrismaService) {}
 
-  async renderPageBySlug(tenantId: string, slug: string, lang = 'en'): Promise<IPageRenderSchema> {
+  async renderPageBySlug(tenantId: string, slug: string, lang = 'en'): Promise<any> {
     const cleanSlug = slug.replace(/^\/+|\/+$/g, '') || 'home';
+
+    // Guard against system routes
+    if (cleanSlug.startsWith('admin') || cleanSlug.startsWith('api')) {
+      throw new NotFoundException('Page not found');
+    }
 
     try {
       const page = await this.prisma.page.findFirst({
         where: {
           tenant_id: tenantId,
           slug: cleanSlug,
-          status: 'PUBLISHED',
         },
         include: {
           layout: {
@@ -41,14 +71,70 @@ export class RendererService {
       });
 
       if (page) {
-        return this.formatPageResponse(page, tenantId, lang);
+        if (page.status === 'PUBLISHED' && page.region_blocks.length > 0) {
+          return this.formatPageResponse(page, tenantId, lang);
+        } else {
+          // Page exists in CMS database but has no published content
+          return this.getEmptyPageResponse(cleanSlug, tenantId, lang);
+        }
       }
     } catch (err) {
-      // Fallback to dynamic schema generator
+      // Database offline - fallback to dynamic route resolver
     }
 
-    // Dynamic Backend-Driven Section Route Resolvers
-    return this.getDynamicSectionSchema(cleanSlug, tenantId, lang);
+    // Dynamic Route Resolver for CMS navigation tree
+    if (this.KNOWN_SECTIONS_WITH_CONTENT.has(cleanSlug)) {
+      return this.getDynamicSectionSchema(cleanSlug, tenantId, lang);
+    }
+
+    // Valid CMS page without published items (portfolio, gallery, resources, events, news, downloads, etc.)
+    return this.getEmptyPageResponse(cleanSlug, tenantId, lang);
+  }
+
+  private getEmptyPageResponse(slug: string, tenantId: string, lang: string) {
+    const formattedTitle = slug
+      .split('/')
+      .pop()!
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+
+    return {
+      success: true,
+      pageExists: true,
+      published: false,
+      status: 'EMPTY',
+      title: formattedTitle,
+      slug: slug,
+      message: 'No published content yet for this page.',
+      tenant: {
+        id: tenantId,
+        slug: 'default',
+        name: 'Sandip Thapa Personal CMS Engine',
+        domain: 'thapasandip.com.np',
+      },
+      page: {
+        id: `page-empty-${slug}`,
+        slug: `/${slug}`,
+        title: formattedTitle,
+        locale: lang,
+        status: 'EMPTY',
+      },
+      seo: {
+        metaTitle: `${formattedTitle} | Sandip Thapa`,
+        metaDescription: `There is currently no published content available for ${formattedTitle}.`,
+        canonicalUrl: `https://thapasandip.com.np/${slug}`,
+      },
+      layout: {
+        id: `layout-empty-${slug}`,
+        name: 'Empty Page Layout',
+        regions: {
+          header: [],
+          sidebar: [],
+          main: [],
+          footer: [],
+        },
+      },
+    };
   }
 
   private formatPageResponse(page: any, tenantId: string, lang: string): IPageRenderSchema {
