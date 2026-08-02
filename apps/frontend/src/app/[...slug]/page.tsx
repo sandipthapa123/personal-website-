@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { CmsApiClient } from '@cms/api-client';
 import { DynamicPageRenderer } from '../../components/renderer/DynamicPageRenderer';
 
@@ -24,6 +25,10 @@ async function fetchPageSchema(slugArray: string[]) {
 }
 
 export async function generateMetadata({ params }: DynamicPageProps): Promise<Metadata> {
+  if (params.slug?.includes('admin')) {
+    return { title: '404: Page Not Found' };
+  }
+
   const { pageSlug, data } = await fetchPageSchema(params.slug);
   const seo = (data?.seo || {}) as Record<string, any>;
   const pageTitle = data?.page?.title || pageSlug.replace(/-/g, ' ').toUpperCase();
@@ -43,6 +48,10 @@ export async function generateMetadata({ params }: DynamicPageProps): Promise<Me
 }
 
 export default async function DynamicPage({ params }: DynamicPageProps) {
+  if (params.slug?.includes('admin')) {
+    notFound();
+  }
+
   const { pageSlug, data } = await fetchPageSchema(params.slug);
 
   if (data) {
