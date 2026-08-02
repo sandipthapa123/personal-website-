@@ -3,22 +3,221 @@ import type { Metadata } from 'next';
 import { AuthorProfileCard } from '../components/content/AuthorProfileCard';
 import { SocialShareButtons } from '../components/content/SocialShareButtons';
 
+const DEFAULT_HOMEPAGE_FALLBACK = {
+  seo: {
+    metaTitle: 'Sandip Thapa | Academic Research, Law & Accessibility Platform',
+    metaDescription:
+      'Enterprise Backend-Driven Personal Website of Sandip Thapa covering Legal Research, Disability Rights, Human Rights, Literature, and Academic Publications.',
+    canonicalUrl: 'https://thapasandip.com.np',
+  },
+  layout: {
+    regions: {
+      main: [
+        {
+          blockId: 'sec-hero',
+          type: 'HERO',
+          props: {
+            tagline: 'LEGAL RESEARCH, HUMAN RIGHTS & ACCESSIBILITY',
+            title: 'Advancing Disability Rights & Legal Capacity in Nepal',
+            subtitle:
+              'Official academic research portal, publications directory, literary archive, and policy consulting platform of Sandip Thapa.',
+            primaryCta: { label: 'Explore Publications', url: '/publications' },
+            secondaryCta: { label: 'Read Research Papers', url: '/research' },
+          },
+        },
+        {
+          blockId: 'sec-intro',
+          type: 'TEXT_BLOCK',
+          props: {
+            heading: 'Short Introduction',
+            content:
+              'Sandip Thapa is a dedicated legal scholar, researcher, and human rights advocate based in Nepal. His work focuses on legal capacity, supported decision-making under the UN CRPD, inclusive policy formulation, and digital accessibility compliance.',
+          },
+        },
+        {
+          blockId: 'sec-featured',
+          type: 'TEXT_BLOCK',
+          props: {
+            heading: 'Featured Article: Legal Capacity & Supported Decision-Making under UN CRPD',
+            content:
+              'Published: 2083 Shrawan 17, Saturday (1 August 2026, Saturday) | 18:35 NPT (UTC+05:45) | Word Count: 3,420 words | Reading Time: 18 mins. An in-depth analysis of Article 12 of the Convention on the Rights of Persons with Disabilities and its application in Nepal legal framework.',
+          },
+        },
+        {
+          blockId: 'sec-latest-articles',
+          type: 'ARTICLE_LIST',
+          props: {
+            heading: 'Latest Articles & Essays',
+            description: 'Recent academic commentary, legal critiques, and policy papers.',
+            items: [
+              {
+                title: 'Harmonizing Nepalese Disability Legislation with International Standards',
+                summary: 'Examining legislative gaps between national statutes and CRPD obligations.',
+                publishedBs: '2083 Shrawan 15, Thursday',
+                publishedAd: '30 July 2026',
+              },
+              {
+                title: 'Digital Accessibility in Public Institutions: A Right, Not a Luxury',
+                summary: 'Evaluating web accessibility compliance across municipal portals in Nepal.',
+                publishedBs: '2083 Shrawan 10, Saturday',
+                publishedAd: '25 July 2026',
+              },
+            ],
+          },
+        },
+        {
+          blockId: 'sec-research',
+          type: 'RESEARCH_LIST',
+          props: {
+            heading: 'Research Projects',
+            items: [
+              {
+                title: 'CRPD Article 12 Legal Capacity Benchmark Project',
+                status: 'Ongoing Lead Project',
+                timeline: '2025 - 2026',
+                description:
+                  'A comprehensive empirical survey analyzing judicial guardianship orders and mental health laws across 7 provinces of Nepal.',
+              },
+              {
+                title: 'Nepal Web & Mobile Accessibility Index (NWMAI)',
+                status: 'Completed Survey',
+                timeline: '2024 - 2025',
+                description: 'Auditing 150+ government websites against WCAG 2.1 AAA accessibility standards.',
+              },
+            ],
+          },
+        },
+        {
+          blockId: 'sec-working-papers',
+          type: 'TEXT_BLOCK',
+          props: {
+            heading: 'Working Papers & Policy Briefs',
+            content:
+              'Draft working papers on legal reform, policy briefs submitted to parliamentary committees, and legislative recommendations.',
+          },
+        },
+        {
+          blockId: 'sec-publications',
+          type: 'PUBLICATION_LIST',
+          props: {
+            heading: 'Academic Publications & Journal Articles',
+            items: [
+              {
+                title: 'Legal Capacity & Decision-Making Autonomy: Rethinking Guardianship in Nepal',
+                journal: 'Kathmandu Law Review, Vol. 14, Issue 2',
+                citationApa: 'Thapa, S. (2026). Legal Capacity & Decision-Making Autonomy. Kathmandu Law Review.',
+              },
+              {
+                title: 'Barriers to Inclusive Education for Children with Disabilities in Rural Nepal',
+                journal: 'Journal of Human Rights & Social Justice, Vol. 9',
+                citationApa: 'Thapa, S. (2025). Barriers to Inclusive Education. J. Human Rights & Social Justice.',
+              },
+            ],
+          },
+        },
+        {
+          blockId: 'sec-books',
+          type: 'TEXT_BLOCK',
+          props: {
+            heading: 'Books & Monograph Chapters',
+            content:
+              'Authored volumes, edited collections, and handbook chapters on human rights jurisprudence, disability law, and administrative justice.',
+          },
+        },
+        {
+          blockId: 'sec-poems',
+          type: 'TEXT_BLOCK',
+          props: {
+            heading: 'Poems & Literary Works (कविता र साहित्य)',
+            content:
+              'Explore original Nepali and English poetry collections, literary essays, and reflections on identity, justice, and human resilience.',
+          },
+        },
+        {
+          blockId: 'sec-translations',
+          type: 'TEXT_BLOCK',
+          props: {
+            heading: 'Translations & Multilingual Legal Texts',
+            content:
+              'English to Nepali and Nepali to English translations of UN declarations, legal instruments, policy charters, and literary texts.',
+          },
+        },
+        {
+          blockId: 'sec-media',
+          type: 'TEXT_BLOCK',
+          props: {
+            heading: 'Media, Interviews & Public Dialogues',
+            content:
+              'Keynote addresses, podcast episodes, television interviews, and press appearances discussing human rights and legal reforms.',
+          },
+        },
+        {
+          blockId: 'sec-services',
+          type: 'TEXT_BLOCK',
+          props: {
+            heading: 'Professional Consulting & Research Services',
+            content:
+              'Services offered: Legal Research & Drafting, Certified Translation, Digital Accessibility Audits (WCAG 2.1 AAA), Disability Rights Training, and Keynote Speaking.',
+          },
+        },
+        {
+          blockId: 'sec-testimonials',
+          type: 'STATS',
+          props: {
+            heading: 'Academic Impact & Key Metrics',
+            stats: [
+              { label: 'Journal Papers', value: '18+' },
+              { label: 'Citations', value: '340+' },
+              { label: 'Policy Audits', value: '50+' },
+              { label: 'Years Experience', value: '10+' },
+            ],
+          },
+        },
+        {
+          blockId: 'sec-faq-contact',
+          type: 'TEXT_BLOCK',
+          props: {
+            heading: 'Frequently Asked Questions & Contact',
+            content:
+              'For academic collaborations, legal consulting inquiries, or speaking engagements, reach out via the Contact page or email direct.',
+          },
+        },
+      ],
+      sidebar: [
+        {
+          blockId: 'sidebar-author',
+          type: 'AUTHOR_CARD',
+          props: {
+            name: 'Sandip Thapa',
+            title: 'Legal Scholar & Human Rights Researcher',
+            bio: 'Specializing in Disability Rights, Legal Capacity under UN CRPD, Inclusive Policy, and Digital Accessibility Compliance in Nepal.',
+            orcid: 'https://orcid.org',
+            scholar: 'https://scholar.google.com',
+            linkedin: 'https://linkedin.com',
+            website: 'https://thapasandip.com.np',
+          },
+        },
+      ],
+    },
+  },
+};
+
 async function getBackendRenderSchema() {
   try {
     const res = await fetch('http://localhost:4000/api/v1/renderer/page?slug=/', {
       cache: 'no-store',
     });
-    if (!res.ok) return null;
+    if (!res.ok) return DEFAULT_HOMEPAGE_FALLBACK;
     const json = await res.json();
     return json.data || json;
   } catch (err) {
-    return null;
+    return DEFAULT_HOMEPAGE_FALLBACK;
   }
 }
 
 export async function generateMetadata(): Promise<Metadata> {
   const schema = await getBackendRenderSchema();
-  const seo = (schema?.seo || {}) as Record<string, any>;
+  const seo = (schema?.seo || DEFAULT_HOMEPAGE_FALLBACK.seo) as Record<string, any>;
 
   return {
     title: seo.metaTitle || 'Sandip Thapa | Academic Research, Law & Accessibility',
@@ -39,8 +238,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function HomePage() {
   const schema = await getBackendRenderSchema();
-  const mainBlocks = schema?.layout?.regions?.main || [];
-  const sidebarBlocks = schema?.layout?.regions?.sidebar || [];
+  const mainBlocks = schema?.layout?.regions?.main || DEFAULT_HOMEPAGE_FALLBACK.layout.regions.main;
+  const sidebarBlocks = schema?.layout?.regions?.sidebar || DEFAULT_HOMEPAGE_FALLBACK.layout.regions.sidebar;
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-12 my-6">
