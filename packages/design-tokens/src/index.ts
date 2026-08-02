@@ -10,6 +10,9 @@ export const DEFAULT_DESIGN_TOKENS: Omit<IDesignToken, 'id' | 'tenantId'>[] = [
   { category: 'radius', tokenName: 'radius-md', tokenValue: '0.5', unit: 'rem' },
   { category: 'radius', tokenName: 'radius-lg', tokenValue: '0.75', unit: 'rem' },
   { category: 'spacing', tokenName: 'space-block-padding', tokenValue: '3', unit: 'rem' },
+  { category: 'spacing', tokenName: 'breakpoint-mobile', tokenValue: '768', unit: 'px' },
+  { category: 'spacing', tokenName: 'breakpoint-tablet', tokenValue: '1024', unit: 'px' },
+  { category: 'spacing', tokenName: 'breakpoint-desktop', tokenValue: '1280', unit: 'px' },
 ];
 
 /**

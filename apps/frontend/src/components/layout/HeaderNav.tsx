@@ -20,11 +20,10 @@ interface SearchResult {
 }
 
 const DEFAULT_MAIN_NAVIGATION: INavItem[] = [
-  { label: 'Home', url: '/', icon: '🏠' },
+  { label: 'Home', url: '/' },
   {
     label: 'About',
     url: '/about',
-    icon: '👤',
     children: [
       { label: 'Biography', url: '/about/biography' },
       { label: 'Education', url: '/about/education' },
@@ -36,7 +35,6 @@ const DEFAULT_MAIN_NAVIGATION: INavItem[] = [
   {
     label: 'Articles',
     url: '/articles',
-    icon: '📰',
     children: [
       { label: 'All Articles', url: '/articles' },
       { label: 'Categories', url: '/articles/categories' },
@@ -47,7 +45,6 @@ const DEFAULT_MAIN_NAVIGATION: INavItem[] = [
   {
     label: 'Research',
     url: '/research',
-    icon: '🔬',
     children: [
       { label: 'Research Projects', url: '/research/projects' },
       { label: 'Working Papers', url: '/research/working-papers' },
@@ -58,7 +55,6 @@ const DEFAULT_MAIN_NAVIGATION: INavItem[] = [
   {
     label: 'Publications',
     url: '/publications',
-    icon: '📚',
     children: [
       { label: 'Journal Articles', url: '/publications/journal-articles' },
       { label: 'Book Chapters', url: '/publications/book-chapters' },
@@ -69,18 +65,16 @@ const DEFAULT_MAIN_NAVIGATION: INavItem[] = [
   {
     label: 'Poems',
     url: '/poems',
-    icon: '✍️',
     children: [
       { label: 'All Poems', url: '/poems' },
       { label: 'Collections', url: '/poems/collections' },
     ],
   },
-  { label: 'Translations', url: '/translations', icon: '🌐' },
-  { label: 'Projects', url: '/projects', icon: '🗂️' },
+  { label: 'Translations', url: '/translations' },
+  { label: 'Projects', url: '/projects' },
   {
     label: 'Media',
     url: '/media',
-    icon: '🎙️',
     children: [
       { label: 'Interviews', url: '/media/interviews' },
       { label: 'Podcasts', url: '/media/podcasts' },
@@ -91,7 +85,6 @@ const DEFAULT_MAIN_NAVIGATION: INavItem[] = [
   {
     label: 'Services',
     url: '/services',
-    icon: '⚖️',
     children: [
       { label: 'Legal Research', url: '/services/legal-research' },
       { label: 'Translation', url: '/services/translation' },
@@ -100,9 +93,9 @@ const DEFAULT_MAIN_NAVIGATION: INavItem[] = [
       { label: 'Speaking', url: '/services/speaking' },
     ],
   },
-  { label: 'Testimonials', url: '/testimonials', icon: '💬' },
-  { label: 'FAQ', url: '/faq', icon: '❓' },
-  { label: 'Contact', url: '/contact', icon: '📬' },
+  { label: 'Testimonials', url: '/testimonials' },
+  { label: 'FAQ', url: '/faq' },
+  { label: 'Contact', url: '/contact' },
 ];
 
 export function HeaderNav() {
@@ -110,20 +103,38 @@ export function HeaderNav() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
+  const [isDesktop, setIsDesktop] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+
+  const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileDrawerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Responsive Breakpoint Detection (Desktop >= 1024px)
+  useEffect(() => {
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 1024;
+      setIsDesktop(desktop);
+      if (desktop) {
+        setMobileOpen(false);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Fetch navigation from backend
   useEffect(() => {
     fetch('http://localhost:4000/api/v1/navigation/main')
       .then((r) => r.json())
-      .then((data) => {
-        if (data && Array.isArray(data.items) && data.items.length > 0) {
-          setNavItems(data.items);
+      .then((res) => {
+        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setNavItems(res.data);
         }
       })
       .catch(() => {
@@ -131,30 +142,48 @@ export function HeaderNav() {
       });
   }, []);
 
-  // Global keyboard listener (Ctrl+K / Cmd+K for search)
+  // Keyboard accessibility (Esc & Focus Trap for Mobile Drawer)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        openSearch();
+        setSearchOpen(true);
+        setMobileOpen(false);
       }
       if (e.key === 'Escape') {
-        setSearchOpen(false);
-        setMobileOpen(false);
+        if (searchOpen) setSearchOpen(false);
+        if (mobileOpen) {
+          setMobileOpen(false);
+          hamburgerButtonRef.current?.focus();
+        }
+      }
+      if (mobileOpen && e.key === 'Tab' && mobileDrawerRef.current) {
+        const focusables = mobileDrawerRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [mobileOpen, searchOpen]);
 
-  // Focus search input when overlay opens
+  // Focus search input on open
   useEffect(() => {
     if (searchOpen) {
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
   }, [searchOpen]);
 
-  // Debounced search
   const performSearch = useCallback((q: string) => {
     if (!q.trim()) {
       setSearchResults([]);
@@ -179,14 +208,8 @@ export function HeaderNav() {
     searchDebounceRef.current = setTimeout(() => performSearch(val), 350);
   };
 
-  const openSearch = () => {
-    setSearchOpen(true);
-    setMobileOpen(false);
-  };
-
   return (
     <>
-      {/* ──────────────────────────────── Header ────────────────────────────── */}
       <header
         id="site-header"
         className="bg-slate-950/95 border-b border-slate-800 text-white sticky top-0 z-40 backdrop-blur shadow-md"
@@ -206,9 +229,9 @@ export function HeaderNav() {
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation (Visible ONLY on Desktop >= 1024px, Hidden on Mobile/Tablet) */}
           <nav
-            className="hidden xl:flex items-center gap-0.5 text-[11px] font-semibold flex-1 justify-center"
+            className="hidden lg:flex items-center gap-1 text-[12px] font-semibold flex-1 justify-center"
             aria-label="Main navigation"
             id="main-nav"
           >
@@ -221,24 +244,24 @@ export function HeaderNav() {
               >
                 <Link
                   href={item.url}
-                  className="px-2.5 py-2 text-slate-300 hover:text-white hover:bg-slate-900 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap"
+                  className="px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-900 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap focus:ring-2 focus:ring-sky-500"
                   aria-haspopup={item.children ? 'true' : undefined}
                   aria-expanded={activeDropdown === item.label ? 'true' : undefined}
                 >
                   {item.label}
-                  {item.children && <span className="text-[9px] opacity-50">▾</span>}
+                  {item.children && <span className="text-[10px] opacity-50 ml-0.5">▼</span>}
                 </Link>
 
                 {item.children && activeDropdown === item.label && (
                   <div
-                    className="absolute left-0 top-full mt-1 w-52 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-2 space-y-0.5 z-50"
+                    className="absolute left-0 top-full mt-1 w-56 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-2 space-y-0.5 z-50"
                     role="menu"
                   >
                     {item.children.map((child) => (
                       <Link
                         key={child.label}
                         href={child.url}
-                        className="block px-4 py-2 text-slate-300 hover:text-sky-300 hover:bg-slate-800/80 text-xs transition-colors"
+                        className="block px-4 py-2 text-slate-300 hover:text-sky-300 hover:bg-slate-800/80 text-xs transition-colors focus:ring-2 focus:ring-sky-500"
                         role="menuitem"
                       >
                         {child.label}
@@ -254,37 +277,32 @@ export function HeaderNav() {
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Search button */}
             <button
-              onClick={openSearch}
-              aria-label="Open search (Ctrl+K)"
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors"
+              onClick={() => {
+                setSearchOpen(true);
+                setMobileOpen(false);
+              }}
+              aria-label="Open search modal (Ctrl+K)"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors focus:ring-2 focus:ring-sky-500"
             >
-              <span>🔍 Search</span>
-              <kbd className="hidden md:block px-1.5 py-0.5 bg-slate-950 rounded text-[10px] border border-slate-800">⌃K</kbd>
+              <span>Search</span>
+              <kbd className="hidden md:block px-1.5 py-0.5 bg-slate-950 rounded text-[10px] border border-slate-800">Ctrl+K</kbd>
             </button>
 
-            {/* Mobile search icon */}
+            {/* Mobile Hamburger Button (Visible ONLY on Mobile/Tablet < 1024px, NEVER on Desktop) */}
             <button
-              onClick={openSearch}
-              aria-label="Search"
-              className="sm:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-            >
-              🔍
-            </button>
-
-            {/* Mobile hamburger */}
-            <button
+              ref={hamburgerButtonRef}
               onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+              aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={mobileOpen}
               aria-controls="mobile-nav-panel"
-              className="xl:hidden p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+              className="lg:hidden p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors focus:ring-2 focus:ring-sky-500"
             >
               {mobileOpen ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               )}
@@ -293,32 +311,32 @@ export function HeaderNav() {
         </div>
       </header>
 
-      {/* ──────────────────────────────── Mobile Navigation Panel ────────────────────────────── */}
-      {mobileOpen && (
+      {/* Mobile Drawer (Rendered ONLY on Mobile/Tablet when open, NEVER on Desktop) */}
+      {!isDesktop && mobileOpen && (
         <div
           id="mobile-nav-panel"
-          className="xl:hidden fixed top-[56px] left-0 right-0 bottom-0 bg-slate-950/98 backdrop-blur z-30 overflow-y-auto"
-          aria-label="Mobile navigation"
+          ref={mobileDrawerRef}
+          className="lg:hidden fixed top-[56px] left-0 right-0 bottom-0 bg-slate-950/98 backdrop-blur z-50 overflow-y-auto p-4 border-t border-slate-800"
           role="dialog"
           aria-modal="true"
+          aria-label="Mobile Navigation Drawer"
         >
-          <nav className="p-4 space-y-1">
+          <nav className="space-y-1">
             {navItems.map((item) => (
-              <div key={item.label}>
+              <div key={item.label} className="border-b border-slate-900 pb-1">
                 <div className="flex items-center justify-between">
                   <Link
                     href={item.url}
                     onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-3 flex-1 px-4 py-3 text-slate-200 hover:text-white hover:bg-slate-900 rounded-xl font-semibold text-sm transition-colors"
+                    className="flex-1 px-4 py-3 text-slate-200 hover:text-white hover:bg-slate-900 rounded-xl font-bold text-sm transition-colors focus:ring-2 focus:ring-sky-500"
                   >
-                    {item.icon && <span>{item.icon}</span>}
                     {item.label}
                   </Link>
                   {item.children && (
                     <button
                       onClick={() => setMobileExpanded(mobileExpanded === item.label ? null : item.label)}
-                      className="px-3 py-3 text-slate-400 hover:text-white transition-colors"
-                      aria-label={`Expand ${item.label}`}
+                      className="px-3 py-3 text-slate-400 hover:text-white transition-colors focus:ring-2 focus:ring-sky-500"
+                      aria-label={`Toggle ${item.label} submenu`}
                     >
                       <span className="text-xs">{mobileExpanded === item.label ? '▲' : '▼'}</span>
                     </button>
@@ -326,13 +344,13 @@ export function HeaderNav() {
                 </div>
 
                 {item.children && mobileExpanded === item.label && (
-                  <div className="ml-10 mb-2 space-y-0.5">
+                  <div className="ml-6 my-1 space-y-1 bg-slate-900/60 rounded-lg p-2">
                     {item.children.map((child) => (
                       <Link
                         key={child.label}
                         href={child.url}
                         onClick={() => setMobileOpen(false)}
-                        className="block px-4 py-2 text-slate-400 hover:text-sky-300 hover:bg-slate-900 rounded-lg text-xs transition-colors"
+                        className="block px-3 py-2 text-slate-300 hover:text-sky-300 hover:bg-slate-800 rounded-md text-xs font-medium transition-colors focus:ring-2 focus:ring-sky-500"
                       >
                         {child.label}
                       </Link>
@@ -345,16 +363,16 @@ export function HeaderNav() {
             <div className="pt-4 border-t border-slate-800 mt-4">
               <a
                 href="http://localhost:4000/admin/login"
-                className="flex items-center gap-2 px-4 py-3 text-sky-400 text-xs font-semibold rounded-xl hover:bg-slate-900 transition-colors"
+                className="block text-center px-4 py-3 text-sky-400 border border-sky-800 bg-sky-950/40 text-xs font-bold rounded-xl hover:bg-sky-900 transition-colors"
               >
-                🔐 Backend Admin Console
+                Backend Admin Console
               </a>
             </div>
           </nav>
         </div>
       )}
 
-      {/* ──────────────────────────────── Search Overlay ────────────────────────────── */}
+      {/* Search Modal */}
       {searchOpen && (
         <div
           className="fixed inset-0 bg-slate-950/90 backdrop-blur z-50 flex items-start justify-center pt-20 px-4"
@@ -364,9 +382,8 @@ export function HeaderNav() {
           onClick={(e) => { if (e.target === e.currentTarget) setSearchOpen(false); }}
         >
           <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
-            {/* Search input */}
             <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800">
-              <span className="text-slate-400 text-lg">🔍</span>
+              <span className="text-slate-400 text-sm font-bold">Search</span>
               <input
                 ref={searchInputRef}
                 type="search"
@@ -378,23 +395,21 @@ export function HeaderNav() {
               />
               <button
                 onClick={() => setSearchOpen(false)}
-                className="text-slate-500 hover:text-white px-2 py-1 text-xs font-semibold transition-colors"
-                aria-label="Close search"
+                className="text-slate-500 hover:text-white px-2 py-1 text-xs font-semibold transition-colors focus:ring-2 focus:ring-sky-500"
+                aria-label="Close search modal"
               >
                 ESC
               </button>
             </div>
 
-            {/* Results */}
             <div className="max-h-[60vh] overflow-y-auto">
               {searching && (
-                <div className="p-8 text-center text-slate-500 text-sm animate-pulse">Searching...</div>
+                <div className="p-8 text-center text-slate-500 text-sm animate-pulse">Searching catalog...</div>
               )}
 
               {!searching && searchQuery && searchResults.length === 0 && (
                 <div className="p-8 text-center">
                   <p className="text-slate-400 text-sm">No results found for &quot;<strong className="text-white">{searchQuery}</strong>&quot;</p>
-                  <p className="text-slate-600 text-xs mt-2">Try a different keyword or browse navigation above.</p>
                 </div>
               )}
 
@@ -415,40 +430,11 @@ export function HeaderNav() {
                           {result.summary && (
                             <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">{result.summary}</p>
                           )}
-                          {result.category && (
-                            <span className="inline-block mt-1 text-[10px] text-sky-500 font-medium">{result.category}</span>
-                          )}
                         </div>
-                        <span className="text-slate-600 group-hover:text-slate-400 text-sm flex-shrink-0">→</span>
                       </a>
                     </li>
                   ))}
                 </ul>
-              )}
-
-              {!searching && !searchQuery && (
-                <div className="p-6 space-y-3">
-                  <p className="text-[11px] text-slate-500 uppercase font-bold tracking-wider">Quick Links</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: '📰 Articles', url: '/articles' },
-                      { label: '🔬 Research', url: '/research' },
-                      { label: '📚 Publications', url: '/publications' },
-                      { label: '✍️ Poems', url: '/poems' },
-                      { label: '⚖️ Services', url: '/services' },
-                      { label: '📬 Contact', url: '/contact' },
-                    ].map((link) => (
-                      <a
-                        key={link.url}
-                        href={link.url}
-                        onClick={() => setSearchOpen(false)}
-                        className="px-3 py-2.5 bg-slate-800/60 hover:bg-slate-800 border border-slate-800 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition-colors"
-                      >
-                        {link.label}
-                      </a>
-                    ))}
-                  </div>
-                </div>
               )}
             </div>
           </div>
