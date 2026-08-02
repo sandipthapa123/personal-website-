@@ -98,13 +98,6 @@ export function HeaderNav() {
             <span>🔍 Search</span>
             <kbd className="px-1.5 py-0.5 bg-slate-950 rounded text-[10px] border border-slate-800">Ctrl K</kbd>
           </button>
-
-          <Link
-            href="/admin/login"
-            className="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-lg shadow-md transition-all"
-          >
-            Admin
-          </Link>
         </div>
       </div>
     </header>
