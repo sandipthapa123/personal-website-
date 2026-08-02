@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { UniversalContentService } from '../content/universal-content.service';
 
 export type MenuLocation =
   | 'PRIMARY_HEADER'
@@ -30,6 +31,7 @@ export interface IMenuItem {
   slug?: string;
   targetType: 'internal_page' | 'external_url' | 'dynamic_route' | 'category' | 'tag' | 'custom_link' | 'anchor_link';
   targetUrl: string;
+  targetId?: string; // SSOT REFERENCE
   icon?: string;
   badgeText?: string;
   badgeColor?: string;
@@ -62,38 +64,42 @@ export class NavigationService {
   private menus: Map<string, IMenuSchema> = new Map();
   private versionHistory: Map<string, Array<{ version: number; snapshot: IMenuSchema; timestamp: string }>> = new Map();
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private universalContentService: UniversalContentService
+  ) {
     this.seedDefaultMenus();
   }
 
   private seedDefaultMenus() {
     const primaryHeaderItems: IMenuItem[] = [
-      { id: 'mi-home', title: 'Home', targetType: 'internal_page', targetUrl: '/', active: true, order: 0 },
+      { id: 'mi-home', title: '', targetType: 'internal_page', targetId: 'page-home', targetUrl: '', active: true, order: 0 },
       {
         id: 'mi-about',
         title: 'About',
         targetType: 'internal_page',
-        targetUrl: '/about',
+        targetId: 'page-about',
+        targetUrl: '',
         active: true,
         order: 1,
         children: [
-          { id: 'mi-bio', title: 'Biography', targetType: 'internal_page', targetUrl: '/about/biography', active: true, order: 0 },
-          { id: 'mi-edu', title: 'Education & Credentials', targetType: 'internal_page', targetUrl: '/about/education', active: true, order: 1 },
-          { id: 'mi-exp', title: 'Experience & Roles', targetType: 'internal_page', targetUrl: '/about/experience', active: true, order: 2 },
-          { id: 'mi-cv', title: 'Curriculum Vitae', targetType: 'internal_page', targetUrl: '/about/resume', active: true, order: 3 },
+          { id: 'mi-bio', title: '', targetType: 'internal_page', targetId: 'page-biography', targetUrl: '', active: true, order: 0 },
+          { id: 'mi-edu', title: '', targetType: 'internal_page', targetId: 'page-education', targetUrl: '', active: true, order: 1 },
+          { id: 'mi-exp', title: '', targetType: 'internal_page', targetId: 'page-experience', targetUrl: '', active: true, order: 2 },
+          { id: 'mi-cv', title: '', targetType: 'internal_page', targetId: 'page-resume', targetUrl: '', active: true, order: 3 },
         ],
       },
       {
         id: 'mi-articles',
-        title: 'Articles',
+        title: 'Articles', // static label for the dropdown parent
         targetType: 'dynamic_route',
         targetUrl: '/articles',
         active: true,
         order: 2,
         children: [
           { id: 'mi-art-all', title: 'All Articles', targetType: 'internal_page', targetUrl: '/articles', active: true, order: 0 },
-          { id: 'mi-art-cat', title: 'Categories', targetType: 'internal_page', targetUrl: '/articles/categories', active: true, order: 1 },
-          { id: 'mi-art-tags', title: 'Tags', targetType: 'internal_page', targetUrl: '/articles/tags', active: true, order: 2 },
+          { id: 'mi-art-cat', title: '', targetType: 'category', targetId: 'cat-1', targetUrl: '', active: true, order: 1 },
+          { id: 'mi-art-cat2', title: '', targetType: 'category', targetId: 'cat-4', targetUrl: '', active: true, order: 2 },
         ],
       },
       {
@@ -122,7 +128,7 @@ export class NavigationService {
         ],
       },
       { id: 'mi-poems', title: 'Poems & Literature', targetType: 'internal_page', targetUrl: '/poems', active: true, order: 5 },
-      { id: 'mi-contact', title: 'Contact', targetType: 'internal_page', targetUrl: '/contact', active: true, order: 6 },
+      { id: 'mi-contact', title: '', targetType: 'internal_page', targetId: 'page-contact', targetUrl: '', active: true, order: 6 },
     ];
 
     const mainHeaderMenu: IMenuSchema = {
@@ -144,7 +150,7 @@ export class NavigationService {
       enabled: true,
       version: 1,
       items: [
-        { id: 'mi-f-bio', title: 'Biography', targetType: 'internal_page', targetUrl: '/about/biography', active: true, order: 0 },
+        { id: 'mi-f-bio', title: '', targetType: 'internal_page', targetId: 'page-biography', targetUrl: '', active: true, order: 0 },
         { id: 'mi-f-priv', title: 'Privacy Policy', targetType: 'internal_page', targetUrl: '/privacy', active: true, order: 1 },
         { id: 'mi-f-terms', title: 'Terms of Service', targetType: 'internal_page', targetUrl: '/terms', active: true, order: 2 },
         { id: 'mi-f-access', title: 'Accessibility Statement (WCAG 2.2 AAA)', targetType: 'internal_page', targetUrl: '/accessibility-statement', active: true, order: 3 },
@@ -156,31 +162,91 @@ export class NavigationService {
     this.menus.set(footerMenu.id, footerMenu);
   }
 
+  private async hydrateMenuItems(items: IMenuItem[]): Promise<IMenuItem[]> {
+    return Promise.all(items.map(async (item) => {
+      const hydratedItem = { ...item };
+      
+      if (item.targetId) {
+        if (item.targetType === 'category') {
+          try {
+            const cat = await this.universalContentService.getCategoryTree();
+            const flat = this.flattenCategories(cat);
+            const found = flat.find(c => c.id === item.targetId);
+            if (found) {
+              hydratedItem.title = found.name;
+              hydratedItem.targetUrl = '/categories/' + found.slug;
+            }
+          } catch (e) {}
+        } else if (item.targetType === 'internal_page' || item.targetType === 'dynamic_route') {
+          try {
+            const found = await this.universalContentService.getContentById(item.targetId);
+            if (found) {
+              hydratedItem.title = found.title;
+              hydratedItem.targetUrl = found.slug === 'home' ? '/' : '/' + found.slug;
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (item.children && item.children.length > 0) {
+        hydratedItem.children = await this.hydrateMenuItems(item.children);
+      }
+
+      return hydratedItem;
+    }));
+  }
+
+  private flattenCategories(cats: any[]): any[] {
+    let result: any[] = [];
+    for (const c of cats) {
+      result.push(c);
+      if (c.children) {
+        result = result.concat(this.flattenCategories(c.children));
+      }
+    }
+    return result;
+  }
+
   async getMenuByLocation(location: MenuLocation): Promise<IMenuSchema | null> {
+    let matchedMenu: IMenuSchema | null = null;
     for (const menu of this.menus.values()) {
       if (menu.location === location && menu.enabled) {
-        return menu;
+        matchedMenu = menu;
+        break;
       }
     }
 
-    // Default fallback
-    if (location === 'main' || location === 'PRIMARY_HEADER') {
-      return this.menus.get('menu-primary-header') || null;
+    if (!matchedMenu) {
+      if (location === 'main' || location === 'PRIMARY_HEADER') {
+        matchedMenu = this.menus.get('menu-primary-header') || null;
+      } else if (location === 'footer' || location === 'FOOTER') {
+        matchedMenu = this.menus.get('menu-footer-links') || null;
+      }
     }
-    if (location === 'footer' || location === 'FOOTER') {
-      return this.menus.get('menu-footer-links') || null;
+
+    if (matchedMenu) {
+      const hydratedItems = await this.hydrateMenuItems(matchedMenu.items);
+      return { ...matchedMenu, items: hydratedItems };
     }
+    
     return null;
   }
 
   async getAllMenus(): Promise<IMenuSchema[]> {
-    return Array.from(this.menus.values());
+    const menus = Array.from(this.menus.values());
+    const hydratedMenus = await Promise.all(menus.map(async m => {
+      const hydratedItems = await this.hydrateMenuItems(m.items);
+      return { ...m, items: hydratedItems };
+    }));
+    return hydratedMenus;
   }
 
   async getMenuById(id: string): Promise<IMenuSchema> {
     const menu = this.menus.get(id);
     if (!menu) throw new NotFoundException(`Menu with ID ${id} not found`);
-    return menu;
+    
+    const hydratedItems = await this.hydrateMenuItems(menu.items);
+    return { ...menu, items: hydratedItems };
   }
 
   async createMenu(data: { title: string; location: MenuLocation; description?: string; items?: IMenuItem[] }): Promise<IMenuSchema> {
@@ -197,11 +263,15 @@ export class NavigationService {
     };
     this.menus.set(id, newMenu);
     this.recordVersionSnapshot(newMenu);
-    return newMenu;
+    
+    const hydratedItems = await this.hydrateMenuItems(newMenu.items);
+    return { ...newMenu, items: hydratedItems };
   }
 
   async updateMenu(id: string, updates: Partial<IMenuSchema>): Promise<IMenuSchema> {
-    const existing = await this.getMenuById(id);
+    const existing = this.menus.get(id); // don't hydrate for update base
+    if (!existing) throw new NotFoundException(`Menu with ID ${id} not found`);
+    
     const updated: IMenuSchema = {
       ...existing,
       ...updates,
@@ -210,17 +280,20 @@ export class NavigationService {
     };
     this.menus.set(id, updated);
     this.recordVersionSnapshot(updated);
-    return updated;
+    
+    const hydratedItems = await this.hydrateMenuItems(updated.items);
+    return { ...updated, items: hydratedItems };
   }
 
   async deleteMenu(id: string): Promise<{ success: boolean; deletedId: string }> {
-    await this.getMenuById(id);
+    if (!this.menus.has(id)) throw new NotFoundException(`Menu with ID ${id} not found`);
     this.menus.delete(id);
     return { success: true, deletedId: id };
   }
 
   async duplicateMenu(id: string): Promise<IMenuSchema> {
-    const source = await this.getMenuById(id);
+    const source = this.menus.get(id);
+    if (!source) throw new NotFoundException(`Menu with ID ${id} not found`);
     return this.createMenu({
       title: `${source.title} (Copy)`,
       location: `${source.location}_COPY` as MenuLocation,
@@ -230,7 +303,8 @@ export class NavigationService {
   }
 
   async addMenuItem(menuId: string, itemData: Omit<IMenuItem, 'id'>): Promise<IMenuSchema> {
-    const menu = await this.getMenuById(menuId);
+    const menu = this.menus.get(menuId);
+    if (!menu) throw new NotFoundException(`Menu with ID ${menuId} not found`);
     const newItem: IMenuItem = {
       ...itemData,
       id: `mi-${Date.now()}`,
@@ -242,7 +316,9 @@ export class NavigationService {
   }
 
   async reorderMenuItems(menuId: string, orderedItemIds: string[]): Promise<IMenuSchema> {
-    const menu = await this.getMenuById(menuId);
+    const menu = this.menus.get(menuId);
+    if (!menu) throw new NotFoundException(`Menu with ID ${menuId} not found`);
+    
     const itemMap = new Map(menu.items.map((i) => [i.id, i]));
     const reordered: IMenuItem[] = [];
 

@@ -71,10 +71,17 @@ export function FooterNav() {
   const [copyright, setCopyright] = useState('© 2083 BS / 2026 AD Sandip Thapa. All rights reserved.');
 
   useEffect(() => {
-    fetch('http://localhost:4000/api/v1/navigation/footer')
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+    fetch(`${apiBase}/navigation/footer`)
       .then((r) => r.json())
       .then((data) => {
-        if (data) {
+        if (data && data.data) {
+          const d = data.data;
+          if (d.aboutText) setAboutText(d.aboutText);
+          if (Array.isArray(d.columns) && d.columns.length > 0) setColumns(d.columns);
+          if (Array.isArray(d.socialMedia) && d.socialMedia.length > 0) setSocialMedia(d.socialMedia);
+          if (d.copyright) setCopyright(d.copyright);
+        } else if (data) {
           if (data.aboutText) setAboutText(data.aboutText);
           if (Array.isArray(data.columns) && data.columns.length > 0) setColumns(data.columns);
           if (Array.isArray(data.socialMedia) && data.socialMedia.length > 0) setSocialMedia(data.socialMedia);
@@ -165,7 +172,7 @@ export function FooterNav() {
               Accessibility
             </Link>
             <a
-              href="http://localhost:4000/admin/login"
+              href="/admin/login"
               className="hover:text-sky-400 transition-colors font-semibold"
               target="_blank"
               rel="noopener noreferrer"

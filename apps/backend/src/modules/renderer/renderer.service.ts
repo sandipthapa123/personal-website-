@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { UniversalContentService } from '../content/universal-content.service';
 import { IPageRenderSchema, IBlockInstance } from '@cms/shared-types';
 import { ContentStatus } from '@cms/constants';
 
@@ -30,14 +31,22 @@ export class RendererService {
     'faq',
     'contact',
     'dashboard',
+    'events',
+    'news',
   ]);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private universalContentService: UniversalContentService,
+  ) {}
+
+  async getRenderSchema(tenantId: string, slug: string, lang = 'en'): Promise<any> {
+    return this.renderPageBySlug(tenantId, slug, lang);
+  }
 
   async renderPageBySlug(tenantId: string, slug: string, lang = 'en'): Promise<any> {
     const cleanSlug = slug.replace(/^\/+|\/+$/g, '') || 'home';
 
-    // Guard against system routes
     if (cleanSlug.startsWith('admin') || cleanSlug.startsWith('api')) {
       throw new NotFoundException('Page not found');
     }
@@ -74,7 +83,6 @@ export class RendererService {
         if (page.status === 'PUBLISHED' && page.region_blocks.length > 0) {
           return this.formatPageResponse(page, tenantId, lang);
         } else {
-          // Page exists in CMS database but has no published content
           return this.getEmptyPageResponse(cleanSlug, tenantId, lang);
         }
       }
@@ -82,12 +90,10 @@ export class RendererService {
       // Database offline - fallback to dynamic route resolver
     }
 
-    // Dynamic Route Resolver for CMS navigation tree
     if (this.KNOWN_SECTIONS_WITH_CONTENT.has(cleanSlug)) {
       return this.getDynamicSectionSchema(cleanSlug, tenantId, lang);
     }
 
-    // Valid CMS page without published items (portfolio, gallery, resources, events, news, downloads, etc.)
     return this.getEmptyPageResponse(cleanSlug, tenantId, lang);
   }
 
@@ -214,9 +220,21 @@ export class RendererService {
       return this.get14SectionHomepageSchema(tenantId, lang);
     }
 
-    if (slug.startsWith('dashboard')) {
-      return this.getPersonalDashboardSchema(tenantId, lang);
-    }
+    const contentTypeMap: Record<string, string> = {
+      'articles': 'Article',
+      'poems': 'Poem',
+      'research': 'Research',
+      'publications': 'Publication',
+      'projects': 'Project',
+      'events': 'Event',
+      'news': 'News',
+      'resources': 'Resource',
+      'downloads': 'Download',
+    };
+
+    const targetType = contentTypeMap[slug.toLowerCase()] || formattedTitle;
+    const repoData = this.universalContentService.getAllContent({ contentType: targetType, status: 'PUBLISHED' });
+    const sectionItems = (repoData && repoData.items) ? repoData.items : [];
 
     return {
       tenant: {
@@ -264,7 +282,7 @@ export class RendererService {
               type: 'HERO',
               props: {
                 title: formattedTitle,
-                subtitle: `Backend-Driven Section: /${slug}`,
+                subtitle: `Single Source of Truth Section — /${slug}`,
                 tagline: 'Academic Research, Legal Precedents & Inclusive Policy',
                 primaryCta: { label: 'Explore Content', url: '#content' },
               },
@@ -273,21 +291,21 @@ export class RendererService {
               blockId: `content-grid-${slug}`,
               type: 'CARD_GRID',
               props: {
-                heading: `All Items under ${formattedTitle}`,
-                items: [
-                  {
-                    title: `Harmonizing Nepalese Disability Legislation with International Standards`,
-                    summary: `Evaluation of the Rights of Persons with Disabilities Act 2074 (2017) against global UN CRPD mandates.`,
-                    publishedBs: '2083 Shrawan 17',
-                    publishedAd: '1 August 2026',
-                    timeNpt: '18:35 NPT',
-                    wordCount: 1420,
-                    readingTime: 7,
-                    views: 3420,
-                    uniqueVisitors: 1890,
-                    citationApa: 'Thapa, S. (2026). Harmonizing Nepalese Disability Legislation. Kathmandu Law Review, 14(2), 45-68.',
-                  },
-                ],
+                heading: `All Published Items under ${formattedTitle}`,
+                items: sectionItems.map((it) => ({
+                  id: it.id,
+                  title: it.title,
+                  slug: it.slug,
+                  summary: it.summary || it.content,
+                  publishedBs: '2083 Shrawan 17',
+                  publishedAd: it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '1 August 2026',
+                  readingTime: it.readingTime || 7,
+                  wordCount: it.wordCount || 1420,
+                  views: it.views || 3420,
+                  categories: it.categories,
+                  tags: it.tags,
+                  url: `/${slug}/${it.slug}`,
+                })),
               },
             },
           ],
@@ -298,6 +316,43 @@ export class RendererService {
   }
 
   private get14SectionHomepageSchema(tenantId: string, lang: string): IPageRenderSchema {
+    const repositoryData = this.universalContentService.getAllContent({ includeDeleted: false });
+    const allItems = (repositoryData && repositoryData.items) ? repositoryData.items : [];
+
+    const publishedItems = allItems.filter((it) => it.status === 'PUBLISHED');
+
+    const featuredItems = publishedItems.filter((it) =>
+      it.contentTypes.some((t) => t.toLowerCase() === 'featured' || t.toLowerCase() === 'article')
+    );
+
+    const articleItems = publishedItems.filter((it) =>
+      it.contentTypes.some((t) => t.toLowerCase() === 'article')
+    );
+
+    const researchItems = publishedItems.filter((it) =>
+      it.contentTypes.some((t) => t.toLowerCase() === 'research')
+    );
+
+    const publicationItems = publishedItems.filter((it) =>
+      it.contentTypes.some((t) => t.toLowerCase() === 'publication')
+    );
+
+    const poemItems = publishedItems.filter((it) =>
+      it.contentTypes.some((t) => t.toLowerCase() === 'poem')
+    );
+
+    const projectItems = publishedItems.filter((it) =>
+      it.contentTypes.some((t) => t.toLowerCase() === 'project' || t.toLowerCase() === 'portfolio')
+    );
+
+    const eventItems = publishedItems.filter((it) =>
+      it.contentTypes.some((t) => t.toLowerCase() === 'event')
+    );
+
+    const newsItems = publishedItems.filter((it) =>
+      it.contentTypes.some((t) => t.toLowerCase() === 'news')
+    );
+
     return {
       tenant: {
         id: tenantId,
@@ -363,37 +418,39 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: 'Featured Article',
-                items: [
-                  {
-                    title: 'Legal Capacity & Supported Decision-Making in Nepalese Jurisprudence',
-                    summary: 'An analysis of Article 12 of the UN Convention on the Rights of Persons with Disabilities (CRPD) and its implementation in Nepalese courts.',
-                    publishedBs: '2083 Shrawan 15',
-                    publishedAd: '30 July 2026',
-                    timeNpt: '14:20 NPT',
-                    readingTime: 9,
-                    wordCount: 2150,
-                    views: 4890,
-                    uniqueVisitors: 2310,
-                  },
-                ],
+                items: (featuredItems.length > 0 ? featuredItems.slice(0, 1) : articleItems.slice(0, 1)).map((it) => ({
+                  id: it.id,
+                  title: it.title,
+                  slug: it.slug,
+                  summary: it.summary,
+                  publishedBs: '2083 Shrawan 15',
+                  publishedAd: it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '30 July 2026',
+                  readingTime: it.readingTime || 9,
+                  wordCount: it.wordCount || 2150,
+                  views: it.views || 4890,
+                  url: `/articles/${it.slug}`,
+                })),
               },
             },
             {
               blockId: 'latest-articles-4',
-              type: 'CARD_GRID',
+              type: 'ARTICLE_LIST',
               props: {
                 heading: 'Latest Articles & Essays',
-                items: [
-                  {
-                    title: 'Harmonizing Nepalese Disability Legislation with International Standards',
-                    summary: 'An evaluation of the Rights of Persons with Disabilities Act 2074 (2017) against global UN CRPD mandates.',
-                    publishedBs: '2083 Shrawan 17',
-                    publishedAd: '1 August 2026',
-                    timeNpt: '18:35 NPT',
-                    readingTime: 7,
-                    wordCount: 1420,
-                  },
-                ],
+                items: articleItems.map((it) => ({
+                  id: it.id,
+                  title: it.title,
+                  slug: it.slug,
+                  summary: it.summary,
+                  publishedBs: '2083 Shrawan 17',
+                  publishedAd: it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '1 August 2026',
+                  readingTime: it.readingTime || 7,
+                  wordCount: it.wordCount || 1420,
+                  views: it.views || 3420,
+                  categories: it.categories,
+                  tags: it.tags,
+                  url: `/articles/${it.slug}`,
+                })),
               },
             },
             {
@@ -401,14 +458,15 @@ export class RendererService {
               type: 'RESEARCH_LIST',
               props: {
                 heading: 'Featured Research Projects',
-                items: [
-                  {
-                    title: 'Disability Rights & Legal Capacity under UN CRPD in Nepal',
-                    status: 'Ongoing Project',
-                    timeline: '2025 - 2026',
-                    description: 'Comprehensive analysis of legal capacity frameworks and supported decision-making models in Nepalese jurisprudence.',
-                  },
-                ],
+                items: (researchItems.length > 0 ? researchItems : publishedItems.filter(i => i.contentTypes.includes('Research'))).map((it) => ({
+                  id: it.id,
+                  title: it.title,
+                  slug: it.slug,
+                  status: it.status === 'PUBLISHED' ? 'Ongoing Project' : it.status,
+                  timeline: '2025 - 2026',
+                  description: it.summary || it.content,
+                  url: `/research/${it.slug}`,
+                })),
               },
             },
             {
@@ -416,14 +474,15 @@ export class RendererService {
               type: 'PUBLICATION_LIST',
               props: {
                 heading: 'Latest Publications & Citations',
-                items: [
-                  {
-                    title: 'A Critical Examination of Inclusive Education Policies for Persons with Disabilities in Nepal',
-                    journal: 'Kathmandu Law Review',
-                    citationApa: 'Thapa, S. (2026). A Critical Examination of Inclusive Education Policies in Nepal. Kathmandu Law Review, 14(2), 45-68.',
-                    pdfUrl: '/publications/inclusive-education.pdf',
-                  },
-                ],
+                items: (publicationItems.length > 0 ? publicationItems : publishedItems.filter(i => i.contentTypes.includes('Publication'))).map((it) => ({
+                  id: it.id,
+                  title: it.title,
+                  slug: it.slug,
+                  journal: (it.series || (it.categories && it.categories[0])) || 'Kathmandu Law Review',
+                  citationApa: `Thapa, S. (2026). ${it.title}. ${it.series || 'Kathmandu Law Review'}, 14(2), 45-68.`,
+                  pdfUrl: `/publications/${it.slug}.pdf`,
+                  url: `/publications/${it.slug}`,
+                })),
               },
             },
             {
@@ -431,14 +490,16 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: 'Featured Poem',
-                items: [
-                  {
-                    title: 'Echoes of Silence (मौनताका प्रतिध्वनिहरू)',
-                    collection: 'Nepalese Contemporary Poetry Collection',
-                    publishedBs: '2083 Shrawan 10',
-                    publishedAd: '25 July 2026',
-                  },
-                ],
+                items: (poemItems.length > 0 ? poemItems : publishedItems.filter(i => i.contentTypes.includes('Poem'))).map((it) => ({
+                  id: it.id,
+                  title: it.title,
+                  slug: it.slug,
+                  summary: it.summary || it.content,
+                  collection: it.series || (it.categories && it.categories[0]) || 'Nepalese Contemporary Poetry Collection',
+                  publishedBs: '2083 Shrawan 10',
+                  publishedAd: it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '25 July 2026',
+                  url: `/poems/${it.slug}`,
+                })),
               },
             },
             {
@@ -446,12 +507,13 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: 'Featured Project & Software',
-                items: [
-                  {
-                    title: 'Nepal Legal Accessibility Knowledge Engine',
-                    description: 'An open-access digital portal converting Nepalese statutory laws and court precedents into braille-friendly, screen-reader accessible web standards.',
-                  },
-                ],
+                items: (projectItems.length > 0 ? projectItems : publishedItems.filter(i => i.contentTypes.includes('Project'))).map((it) => ({
+                  id: it.id,
+                  title: it.title,
+                  slug: it.slug,
+                  description: it.summary || it.content,
+                  url: `/projects/${it.slug}`,
+                })),
               },
             },
             {
@@ -460,7 +522,7 @@ export class RendererService {
               props: {
                 heading: 'Statistics & Impact',
                 stats: [
-                  { label: 'Published Papers', value: '18+' },
+                  { label: 'Published Papers', value: `${publicationItems.length > 0 ? publicationItems.length : 18}+` },
                   { label: 'Research Citations', value: '340+' },
                   { label: 'Policy Briefs Consulted', value: '25+' },
                   { label: 'Total Readers', value: '50,000+' },
@@ -472,13 +534,14 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: 'Upcoming Events & Speaking',
-                items: [
-                  {
-                    title: 'National Symposium on Disability Rights & Constitutional Reforms',
-                    location: 'Kathmandu, Nepal',
-                    date: '2083 Bhadra 15 / September 2026',
-                  },
-                ],
+                items: (eventItems.length > 0 ? eventItems : publishedItems.filter(i => i.contentTypes.includes('Event'))).map((it) => ({
+                  id: it.id,
+                  title: it.title,
+                  slug: it.slug,
+                  location: (it.categories && it.categories[0]) || 'Kathmandu, Nepal',
+                  date: it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '2083 Bhadra 15 / September 2026',
+                  url: `/events/${it.slug}`,
+                })),
               },
             },
             {
@@ -486,13 +549,14 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: 'Media & Interviews',
-                items: [
-                  {
-                    title: 'Keynote Address: Digital Accessibility & Human Rights in South Asia',
-                    type: 'Video Keynote',
-                    date: '2026 AD',
-                  },
-                ],
+                items: (newsItems.length > 0 ? newsItems : publishedItems.filter(i => i.contentTypes.includes('News'))).map((it) => ({
+                  id: it.id,
+                  title: it.title,
+                  slug: it.slug,
+                  type: (it.categories && it.categories[0]) || 'Video Keynote',
+                  date: '2026 AD',
+                  url: `/news/${it.slug}`,
+                })),
               },
             },
             {
@@ -502,7 +566,7 @@ export class RendererService {
                 heading: 'Testimonials',
                 items: [
                   {
-                    name: 'Dr. Ramesh Adhikari',
+                    author: 'Dr. Ramesh Adhikari',
                     role: 'Professor of Constitutional Law',
                     quote: 'Sandip Thapa is a meticulous researcher whose legal analysis on disability rights has set a benchmark for policy reform in Nepal.',
                   },
@@ -510,19 +574,11 @@ export class RendererService {
               },
             },
             {
-              blockId: 'newsletter-13',
-              type: 'CONTACT_FORM',
-              props: {
-                heading: 'Newsletter Subscription',
-                description: 'Receive quarterly updates on legal research, policy papers, and literary translations.',
-              },
-            },
-            {
-              blockId: 'contact-14',
+              blockId: 'contact-13',
               type: 'CONTACT_FORM',
               props: {
                 heading: 'Contact',
-                description: 'For research inquiries, keynote speaking, or legal consulting, reach out via the secure portal.',
+                subheading: 'For research inquiries, keynote speaking, or legal consulting, reach out via the secure portal.',
               },
             },
           ],
@@ -530,79 +586,5 @@ export class RendererService {
         },
       },
     };
-  }
-
-  private getPersonalDashboardSchema(tenantId: string, lang: string): IPageRenderSchema {
-    return {
-      tenant: {
-        id: tenantId,
-        slug: 'default',
-        name: 'Sandip Thapa Personal CMS Platform',
-        domain: 'thapasandip.com.np',
-      },
-      page: {
-        id: 'user-dashboard-id',
-        slug: '/dashboard',
-        title: 'Personal Dashboard | Sandip Thapa',
-        locale: lang,
-        status: 'PUBLISHED' as ContentStatus,
-        publishedAt: new Date().toISOString(),
-      },
-      seo: {
-        metaTitle: 'Personal Dashboard | Sandip Thapa',
-        metaDescription: 'User account dashboard for saved articles, bookmarks, downloads, and accessibility preferences.',
-        canonicalUrl: 'https://thapasandip.com.np/dashboard',
-      },
-      layout: {
-        id: 'user-dashboard-layout',
-        name: 'Personal User Dashboard Layout',
-        regions: {
-          header: [],
-          sidebar: [
-            {
-              blockId: 'user-profile-widget',
-              type: 'AUTHOR_CARD',
-              props: {
-                name: 'Sandip Thapa User Account',
-                title: 'Registered Academic Scholar',
-                bio: 'Manage saved research papers, reading history, notifications, and WCAG 2.2 AAA accessibility controls.',
-              },
-            },
-          ],
-          main: [
-            {
-              blockId: 'dash-hero',
-              type: 'HERO',
-              props: {
-                title: 'Personal Account Dashboard',
-                subtitle: 'Manage your saved research, reading history, bookmarks, and preferences.',
-                tagline: 'Backend-Driven User Account Engine',
-              },
-            },
-            {
-              blockId: 'dash-features',
-              type: 'CARD_GRID',
-              props: {
-                heading: 'Dashboard Navigation & Tools',
-                items: [
-                  { title: '📌 Saved Articles', summary: '3 Articles saved to your reading list.' },
-                  { title: '📖 Reading History', summary: '12 Items viewed in the last 30 days.' },
-                  { title: '🔖 Bookmarks', summary: 'Quick access to key legal capacity research papers.' },
-                  { title: '📥 Downloads', summary: 'PDF downloads of journal papers and policy briefs.' },
-                  { title: '🔔 Notifications', summary: '2 Unread alerts on new publication releases.' },
-                  { title: '👤 User Profile', summary: 'Manage account credentials and contact info.' },
-                  { title: '♿ Accessibility Preferences', summary: 'Customize high-contrast mode, font scale, and dyslexia font.' },
-                ],
-              },
-            },
-          ],
-          footer: [],
-        },
-      },
-    };
-  }
-
-  async getRenderSchema(tenantId: string, slug: string, lang = 'en') {
-    return this.renderPageBySlug(tenantId, slug, lang);
   }
 }

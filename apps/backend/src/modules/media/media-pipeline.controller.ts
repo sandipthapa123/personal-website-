@@ -39,10 +39,7 @@ export class MediaPipelineController {
     return {
       success: true,
       statusCode: 201,
-      data: {
-        ...media,
-        size_bytes: media.size_bytes.toString(),
-      },
+      data: media,
       meta: {
         timestamp: new Date().toISOString(),
         version: 'v1',

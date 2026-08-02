@@ -1,47 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { calculateReadingTimeMinutes, slugify } from '@cms/utilities';
+import { UniversalContentService, IUniversalContentItem } from '../content/universal-content.service';
+import { slugify, calculateReadingTimeMinutes } from '@cms/utilities';
 import { ContentStatus } from '@cms/constants';
 
 @Injectable()
 export class BlogService {
-  private inMemoryPosts: any[] = [
-    {
-      id: 'post-1',
-      tenant_id: 'default-tenant-id',
-      slug: 'legal-capacity-nepal',
-      title: 'Legal Capacity & Supported Decision-Making under UN CRPD in Nepal',
-      summary: 'An in-depth analysis of Article 12 of the Convention on the Rights of Persons with Disabilities.',
-      content: 'Detailed legal research content on supported decision-making frameworks in Nepalese jurisprudence...',
-      locale: 'en',
-      status: ContentStatus.PUBLISHED,
-      reading_time: 9,
-      word_count: 2150,
-      views: 4890,
-      author_name: 'Sandip Thapa',
-      published_at: new Date('2026-07-30T14:20:00Z'),
-      seo_metadata: {
-        metaTitle: 'Legal Capacity & Supported Decision-Making in Nepal',
-        metaDescription: 'Analysis of UN CRPD Article 12 in Nepalese legal framework.',
-      },
-    },
-    {
-      id: 'post-2',
-      tenant_id: 'default-tenant-id',
-      slug: 'digital-accessibility-public-institutions',
-      title: 'Digital Accessibility in Public Institutions: A Right, Not a Luxury',
-      summary: 'Evaluating web accessibility compliance across municipal portals in Nepal.',
-      content: 'Comprehensive review of WCAG 2.1 AAA standards applied to Nepalese e-governance websites...',
-      locale: 'en',
-      status: ContentStatus.PUBLISHED,
-      reading_time: 7,
-      word_count: 1420,
-      views: 3420,
-      author_name: 'Sandip Thapa',
-      published_at: new Date('2026-07-25T18:35:00Z'),
-    },
-  ];
-
   private inMemoryCategories: any[] = [
     { id: 'cat-1', name: 'Legal Research', slug: 'legal-research' },
     { id: 'cat-2', name: 'Disability Rights', slug: 'disability-rights' },
@@ -55,149 +19,58 @@ export class BlogService {
     { id: 'tag-3', name: 'WCAG 2.2', slug: 'wcag-2-2' },
   ];
 
-  private inMemoryPoems: any[] = [
-    {
-      id: 'poem-1',
-      tenant_id: 'default-tenant-id',
-      slug: 'echoes-of-silence',
-      title: 'Echoes of Silence (मौनताका प्रतिध्वनिहरू)',
-      collection: 'Nepalese Contemporary Poetry Collection',
-      content: 'मौनताका प्रतिध्वनिहरूमा...\nकहीँ न्यायको गुन्जन छ,\nकहीँ अधिकारको आह्वान।',
-      author_name: 'Sandip Thapa',
-      published_at: new Date('2026-07-25T10:00:00Z'),
-    },
-  ];
-
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private universalService: UniversalContentService,
+  ) {}
 
   async createPost(tenantId: string, data: any) {
-    const slug = data.slug || slugify(data.title);
-    const readingTime = calculateReadingTimeMinutes(data.content || '');
-    const wordCount = (data.content || '').trim().split(/\s+/).length;
+    const slug = data.slug || slugify(data.title || 'untitled');
+    const contentTypes = data.contentTypes || ['Article'];
 
-    try {
-      return await this.prisma.blogPost.create({
-        data: {
-          tenant_id: tenantId,
-          slug,
-          title: data.title,
-          subtitle: data.subtitle,
-          summary: data.summary,
-          content: data.content,
-          cover_image: data.coverImage,
-          locale: data.locale || 'en',
-          status: (data.status as ContentStatus) || ContentStatus.PUBLISHED,
-          reading_time: readingTime,
-          word_count: wordCount,
-          author_name: data.authorName || 'Sandip Thapa',
-          published_at: data.publishedAt ? new Date(data.publishedAt) : new Date(),
-          seo_metadata: data.seoMetadata || null,
-        },
-      });
-    } catch (err) {
-      // In-memory fallback
-      const newPost = {
-        id: `post-${Date.now()}`,
-        tenant_id: tenantId,
-        slug,
-        title: data.title,
-        subtitle: data.subtitle,
-        summary: data.summary,
-        content: data.content,
-        cover_image: data.coverImage,
-        locale: data.locale || 'en',
-        status: data.status || ContentStatus.PUBLISHED,
-        reading_time: readingTime,
-        word_count: wordCount,
-        views: 0,
-        author_name: data.authorName || 'Sandip Thapa',
-        published_at: new Date(),
-      };
-      this.inMemoryPosts.unshift(newPost);
-      return newPost;
-    }
+    const item = this.universalService.createContent({
+      tenantId,
+      title: data.title,
+      slug,
+      summary: data.summary,
+      content: data.content,
+      contentTypes,
+      categories: data.categories || ['General'],
+      tags: data.tags || [],
+      authors: [data.authorName || 'Sandip Thapa'],
+      locale: data.locale || 'en',
+      status: (data.status as any) || 'PUBLISHED',
+      seoMetadata: data.seoMetadata,
+    });
+
+    return item;
   }
 
   async updatePost(tenantId: string, id: string, data: any) {
-    const readingTime = data.content ? calculateReadingTimeMinutes(data.content) : undefined;
-    const wordCount = data.content ? data.content.trim().split(/\s+/).length : undefined;
-
-    try {
-      return await this.prisma.blogPost.update({
-        where: { id },
-        data: {
-          title: data.title,
-          subtitle: data.subtitle,
-          summary: data.summary,
-          content: data.content,
-          cover_image: data.coverImage,
-          status: data.status,
-          reading_time: readingTime,
-          word_count: wordCount,
-          seo_metadata: data.seoMetadata,
-          updated_at: new Date(),
-        },
-      });
-    } catch (err) {
-      const idx = this.inMemoryPosts.findIndex((p) => p.id === id || p.slug === id);
-      if (idx !== -1) {
-        this.inMemoryPosts[idx] = { ...this.inMemoryPosts[idx], ...data, updated_at: new Date() };
-        return this.inMemoryPosts[idx];
-      }
-      throw new NotFoundException(`Post '${id}' not found`);
-    }
+    return this.universalService.updateContent(id, data);
   }
 
   async deletePost(tenantId: string, id: string) {
-    try {
-      await this.prisma.blogPost.delete({ where: { id } });
-      return { success: true, message: `Post ${id} deleted successfully` };
-    } catch (err) {
-      this.inMemoryPosts = this.inMemoryPosts.filter((p) => p.id !== id && p.slug !== id);
-      return { success: true, message: `Post ${id} deleted successfully` };
-    }
+    this.universalService.softDeleteContent(id);
+    return { success: true, message: `Post ${id} moved to Recycle Bin` };
   }
 
   async getPostBySlug(tenantId: string, slug: string) {
     try {
-      const post = await this.prisma.blogPost.findFirst({
-        where: { tenant_id: tenantId, slug },
-      });
-      if (post) return post;
-    } catch (err) {}
-
-    const memoryMatch = this.inMemoryPosts.find((p) => p.slug === slug || p.id === slug);
-    if (memoryMatch) return memoryMatch;
-
-    throw new NotFoundException(`Blog post '${slug}' not found`);
+      return this.universalService.getContentBySlug(slug);
+    } catch (err) {
+      throw new NotFoundException(`Blog post '${slug}' not found`);
+    }
   }
 
   async getPublishedPosts(tenantId: string, limit = 10, page = 1, statusFilter?: string) {
-    const skip = (page - 1) * limit;
-
-    try {
-      const whereCondition = statusFilter
-        ? { tenant_id: tenantId, status: statusFilter as ContentStatus }
-        : { tenant_id: tenantId, status: ContentStatus.PUBLISHED };
-
-      const [items, total] = await Promise.all([
-        this.prisma.blogPost.findMany({
-          where: whereCondition,
-          orderBy: { published_at: 'desc' },
-          take: limit,
-          skip,
-        }),
-        this.prisma.blogPost.count({ where: whereCondition }),
-      ]);
-
-      return { items, total, page, limit };
-    } catch (err) {
-      const filtered = statusFilter
-        ? this.inMemoryPosts.filter((p) => p.status === statusFilter)
-        : this.inMemoryPosts;
-      const paginated = filtered.slice(skip, skip + limit);
-      return { items: paginated, total: filtered.length, page, limit };
-    }
+    const res = this.universalService.getAllContent({
+      contentType: 'Article',
+      status: statusFilter || 'PUBLISHED',
+      page,
+      limit,
+    });
+    return { items: res.items, total: res.total, page: res.page, limit: res.limit };
   }
 
   // Categories & Tags
@@ -241,40 +114,23 @@ export class BlogService {
 
   // Poems Domain
   async getPoems(tenantId: string) {
-    try {
-      return await this.prisma.poem.findMany({ where: { tenant_id: tenantId } });
-    } catch (err) {
-      return this.inMemoryPoems;
-    }
+    const res = this.universalService.getAllContent({
+      contentType: 'Poem',
+      limit: 100,
+    });
+    return res.items;
   }
 
   async createPoem(tenantId: string, data: any) {
-    const slug = data.slug || slugify(data.title);
-    try {
-      return await this.prisma.poem.create({
-        data: {
-          tenant_id: tenantId,
-          title: data.title,
-          slug,
-          collection: data.collection || 'General',
-          content: data.content,
-          author_name: data.authorName || 'Sandip Thapa',
-          published_at: new Date(),
-        },
-      });
-    } catch (err) {
-      const poem = {
-        id: `poem-${Date.now()}`,
-        tenant_id: tenantId,
-        slug,
-        title: data.title,
-        collection: data.collection || 'General',
-        content: data.content,
-        author_name: data.authorName || 'Sandip Thapa',
-        published_at: new Date(),
-      };
-      this.inMemoryPoems.push(poem);
-      return poem;
-    }
+    return this.universalService.createContent({
+      tenantId,
+      title: data.title,
+      slug: data.slug || slugify(data.title || 'untitled-poem'),
+      summary: data.collection || 'General',
+      content: data.content,
+      contentTypes: ['Poem'],
+      authors: [data.authorName || 'Sandip Thapa'],
+      status: 'PUBLISHED',
+    });
   }
 }

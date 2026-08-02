@@ -130,7 +130,8 @@ export function HeaderNav() {
 
   // Fetch navigation from backend
   useEffect(() => {
-    fetch('http://localhost:4000/api/v1/navigation/main')
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+    fetch(`${apiBase}/navigation/main`)
       .then((r) => r.json())
       .then((res) => {
         if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
@@ -189,8 +190,9 @@ export function HeaderNav() {
       setSearchResults([]);
       return;
     }
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
     setSearching(true);
-    fetch(`http://localhost:4000/api/v1/search?q=${encodeURIComponent(q)}`)
+    fetch(`${apiBase}/search?q=${encodeURIComponent(q)}`)
       .then((r) => r.json())
       .then((data) => {
         setSearchResults(Array.isArray(data.data) ? data.data : []);
@@ -362,7 +364,7 @@ export function HeaderNav() {
 
             <div className="pt-4 border-t border-slate-800 mt-4">
               <a
-                href="http://localhost:4000/admin/login"
+                href="/admin/login"
                 className="block text-center px-4 py-3 text-sky-400 border border-sky-800 bg-sky-950/40 text-xs font-bold rounded-xl hover:bg-sky-900 transition-colors"
               >
                 Backend Admin Console

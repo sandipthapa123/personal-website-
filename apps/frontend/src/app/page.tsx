@@ -4,7 +4,8 @@ import { DynamicPageRenderer } from '../components/renderer/DynamicPageRenderer'
 
 async function getBackendRenderSchema() {
   try {
-    const res = await fetch('http://localhost:4000/api/v1/renderer/page?slug=/', {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+    const res = await fetch(`${apiBase}/renderer/page?slug=/`, {
       cache: 'no-store',
     });
     if (!res.ok) return null;
