@@ -612,17 +612,21 @@ export class AdminController {
   <div class="container">
     <div class="sidebar">
       <div>
-        <div class="panel-title">Page &amp; Intelligent Slug Settings</div>
+        <div class="panel-title" style="display:flex; align-items:center; justify-content:space-between;">
+          <span>Page &amp; Intelligent Slug Settings</span>
+          <span id="slugBadge" class="badge badge-green">Auto Generated</span>
+        </div>
         <div class="field-group">
           <label>Title (English or Nepali)</label>
-          <input type="text" id="pageTitle" value="नेपालमा दृष्टिविहीन व्यक्तिको न्यायमा पहुँच" oninput="liveSeoAnalyze()" />
+          <input type="text" id="pageTitle" value="नेपालमा दृष्टिविहीन व्यक्तिको न्यायमा पहुँच" oninput="handleTitleInput()" />
         </div>
         <div class="field-group" style="margin-top: 8px;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label>SEO Slug</label>
-            <button type="button" class="btn-slug" onclick="autoGenerateSlug()">⚡ Auto Generate Slug</button>
-          </div>
-          <input type="text" id="pageSlug" value="nepal-blind-person-kao-justice-access" />
+          <label>SEO Slug</label>
+          <input type="text" id="pageSlug" value="access-to-justice-for-blind-persons-in-nepal" oninput="handleSlugManualEdit()" />
+        </div>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button type="button" class="btn btn-secondary" style="padding:6px 12px; font-size:11px;" onclick="handleGenerateSlugClick()">Generate Slug</button>
+          <button type="button" class="btn btn-secondary" style="padding:6px 12px; font-size:11px;" onclick="handleResetToAuto()">Reset to Auto</button>
         </div>
         <div class="field-group" style="margin-top: 8px;">
           <label>Language / Locale</label>
@@ -714,17 +718,79 @@ export class AdminController {
       });
     });
 
-    async function autoGenerateSlug() {
+    let slugMode = 'AUTO';
+    let isPublished = false;
+
+    async function handleTitleInput() {
+      liveSeoAnalyze();
+      if (slugMode !== 'AUTO' || isPublished) return;
       const title = document.getElementById('pageTitle').value;
       if (!title) return;
-      const res = await fetch('/api/v1/seo/generate-slug', {
+      const res = await fetch('/api/v1/seo/compute-slug-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
+        body: JSON.stringify({ title, slugMode, action: 'TITLE_CHANGE' })
       });
       const data = await res.json();
-      if (data.data && data.data.generatedSlug) {
-        document.getElementById('pageSlug').value = data.data.generatedSlug;
+      if (data.data && data.data.slug) {
+        document.getElementById('pageSlug').value = data.data.slug;
+      }
+    }
+
+    function handleSlugManualEdit() {
+      slugMode = 'MANUAL';
+      const badge = document.getElementById('slugBadge');
+      badge.className = 'badge badge-amber';
+      badge.innerText = 'Manual';
+      liveSeoAnalyze();
+    }
+
+    async function handleGenerateSlugClick() {
+      const title = document.getElementById('pageTitle').value;
+      if (slugMode === 'MANUAL') {
+        showModalDialog(
+          'Generate a new slug from current title?',
+          'This will replace your current manual slug with a newly generated SEO slug.',
+          'CONFIRM',
+          async () => {
+            await executeSlugGeneration(title);
+          }
+        );
+      } else {
+        await executeSlugGeneration(title);
+      }
+    }
+
+    async function executeSlugGeneration(title) {
+      const res = await fetch('/api/v1/seo/compute-slug-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, action: 'GENERATE_BUTTON' })
+      });
+      const data = await res.json();
+      if (data.data && data.data.slug) {
+        document.getElementById('pageSlug').value = data.data.slug;
+        slugMode = 'AUTO';
+        const badge = document.getElementById('slugBadge');
+        badge.className = 'badge badge-green';
+        badge.innerText = 'Auto Generated';
+      }
+    }
+
+    async function handleResetToAuto() {
+      slugMode = 'AUTO';
+      const badge = document.getElementById('slugBadge');
+      badge.className = 'badge badge-green';
+      badge.innerText = 'Auto Generated';
+      const title = document.getElementById('pageTitle').value;
+      const res = await fetch('/api/v1/seo/compute-slug-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, slugMode: 'AUTO', action: 'RESET_TO_AUTO' })
+      });
+      const data = await res.json();
+      if (data.data && data.data.slug) {
+        document.getElementById('pageSlug').value = data.data.slug;
       }
     }
 

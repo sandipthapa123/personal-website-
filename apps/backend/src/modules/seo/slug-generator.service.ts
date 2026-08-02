@@ -1,9 +1,31 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { RedirectManagerService } from './redirect-manager.service';
+
+export type SlugMode = 'AUTO' | 'MANUAL';
+export type ContentStatus = 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' | 'ARCHIVED';
+
+export interface ISlugStateRequest {
+  title: string;
+  currentSlug?: string;
+  slugMode?: SlugMode;
+  status?: ContentStatus;
+  action?: 'TITLE_CHANGE' | 'MANUAL_EDIT' | 'GENERATE_BUTTON' | 'RESET_TO_AUTO';
+  contentId?: string;
+  tenantId?: string;
+}
+
+export interface ISlugStateResult {
+  slug: string;
+  slugMode: SlugMode;
+  redirectCreated: boolean;
+  oldSlug?: string;
+  newSlug?: string;
+  isPublished: boolean;
+}
 
 @Injectable()
 export class SlugGeneratorService {
-
   // Phrase-level exact translations for Legal, Academic, and Human Rights Titles
   private readonly KNOWN_PHRASE_MAP: Array<{ nepali: RegExp; english: string }> = [
     { nepali: /नेपालमा दृष्टिविहीन व्यक्तिको न्यायमा पहुँच/i, english: 'access to justice for blind persons in nepal' },
@@ -16,7 +38,7 @@ export class SlugGeneratorService {
     { nepali: /सर्वोच्च अदालतको फैसला र कानूनी नजिर/i, english: 'supreme court precedent and legal rulings' },
   ];
 
-  // Token-level semantic dictionary (ordered longest first to prevent partial prefix/suffix collisions)
+  // Token-level semantic dictionary
   private readonly TOKEN_DICTIONARY: Array<{ nepali: string; english: string }> = [
     { nepali: 'दृष्टिविहीन', english: 'blind' },
     { nepali: 'व्यक्तिहरू', english: 'persons' },
@@ -51,7 +73,6 @@ export class SlugGeneratorService {
     { nepali: 'सर्वोच्च', english: 'supreme' },
   ];
 
-  // Postpositions / Suffixes in Nepali
   private readonly SUFFIX_MAP: Array<{ nepali: string; english: string }> = [
     { nepali: 'को', english: 'of' },
     { nepali: 'का', english: 'of' },
@@ -63,7 +84,10 @@ export class SlugGeneratorService {
     { nepali: 'बाट', english: 'from' },
   ];
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redirectManager: RedirectManagerService,
+  ) {}
 
   /**
    * Generates a clean, fluent, professional SEO-optimized English slug from any title.
@@ -74,7 +98,7 @@ export class SlugGeneratorService {
     const maxWords = options?.maxWords ?? 8;
     const preservePrep = options?.preservePrepositions ?? true;
 
-    // 1. Check for Nepali or non-ASCII characters
+    // 1. Translate Nepali if Devanagari detected
     let englishText = title;
     if (/[\u0900-\u097F]/.test(title)) {
       englishText = this.translateNepaliToProfessionalEnglish(title);
@@ -87,7 +111,7 @@ export class SlugGeneratorService {
       .split(/\s+/)
       .filter(Boolean);
 
-    // 3. Filter out redundant noise words (keeping essential prepositions if preservePrepositions = true)
+    // 3. Filter out redundant noise words
     const noiseWords = new Set([
       'a', 'an', 'the', 'and', 'or', 'is', 'are', 'was', 'were', 'be', 'been',
       'has', 'have', 'had', 'do', 'does', 'did'
@@ -107,8 +131,6 @@ export class SlugGeneratorService {
 
     // 5. Join with hyphen
     let slug = words.join('-');
-
-    // Clean up double hyphens
     slug = slug.replace(/-+/g, '-').replace(/^-+|-+$/g, '');
 
     if (!slug) slug = 'content';
@@ -116,26 +138,78 @@ export class SlugGeneratorService {
   }
 
   /**
-   * Translates Nepali text into fluent, natural English suitable for professional publication slugs.
+   * Computes intelligent slug state with published protection, 301 redirects, and manual override tracking.
    */
+  async computeSlugState(req: ISlugStateRequest): Promise<ISlugStateResult> {
+    const isPublished = req.status === 'PUBLISHED';
+    let currentMode: SlugMode = req.slugMode || 'AUTO';
+    let finalSlug = req.currentSlug || '';
+    let redirectCreated = false;
+    const oldSlug = req.currentSlug;
+
+    // Action 1: RESET_TO_AUTO -> Clears manual override, enables AUTO, regenerates slug
+    if (req.action === 'RESET_TO_AUTO') {
+      currentMode = 'AUTO';
+      finalSlug = this.generateSlug(req.title);
+    }
+    // Action 2: GENERATE_BUTTON -> Explicit manual regeneration button click
+    else if (req.action === 'GENERATE_BUTTON') {
+      finalSlug = this.generateSlug(req.title);
+    }
+    // Action 3: MANUAL_EDIT -> User manually typed into slug input -> Set MANUAL mode
+    else if (req.action === 'MANUAL_EDIT') {
+      currentMode = 'MANUAL';
+      finalSlug = this.generateSlug(req.currentSlug || req.title);
+    }
+    // Action 4: TITLE_CHANGE -> Title changed
+    else if (req.action === 'TITLE_CHANGE') {
+      // If content is published, automatic slug updates STOP
+      if (isPublished) {
+        finalSlug = req.currentSlug || this.generateSlug(req.title);
+      } else if (currentMode === 'AUTO') {
+        finalSlug = this.generateSlug(req.title);
+      }
+    } else {
+      // Fallback
+      if (currentMode === 'AUTO' && !isPublished) {
+        finalSlug = this.generateSlug(req.title);
+      }
+    }
+
+    // Uniqueness validation
+    finalSlug = await this.ensureUniqueSlug(finalSlug, req.tenantId || 'default-tenant-id', req.contentId);
+
+    // 301 Redirect Generation if Published content slug changes
+    if (isPublished && oldSlug && oldSlug !== finalSlug) {
+      this.redirectManager.handleSlugChange(oldSlug, finalSlug);
+      redirectCreated = true;
+    }
+
+    return {
+      slug: finalSlug,
+      slugMode: currentMode,
+      redirectCreated,
+      oldSlug,
+      newSlug: finalSlug,
+      isPublished: !!isPublished,
+    };
+  }
+
   private translateNepaliToProfessionalEnglish(nepaliText: string): string {
     const trimmed = nepaliText.trim();
 
-    // Step A: Check exact or phrase-level matches
     for (const phrase of this.KNOWN_PHRASE_MAP) {
       if (phrase.nepali.test(trimmed)) {
         return phrase.english;
       }
     }
 
-    // Step B: Token-based translation with Devanagari grammar parsing
     const rawTokens = trimmed.split(/\s+/).filter(Boolean);
     const translatedTokens: string[] = [];
 
     for (const token of rawTokens) {
       let matched = false;
 
-      // Match token dictionary
       for (const dictItem of this.TOKEN_DICTIONARY) {
         if (token === dictItem.nepali) {
           translatedTokens.push(dictItem.english);
@@ -145,7 +219,6 @@ export class SlugGeneratorService {
       }
 
       if (!matched) {
-        // Strip suffixes & translate stem
         let stem = token;
         let suffixEng = '';
 
@@ -157,7 +230,6 @@ export class SlugGeneratorService {
           }
         }
 
-        // Try stem lookup
         for (const dictItem of this.TOKEN_DICTIONARY) {
           if (stem === dictItem.nepali) {
             translatedTokens.push(suffixEng ? `${dictItem.english} ${suffixEng}` : dictItem.english);
@@ -167,34 +239,22 @@ export class SlugGeneratorService {
         }
 
         if (!matched) {
-          // Phonetic romanization fallback without leak
           translatedTokens.push(this.romanizeClean(stem));
         }
       }
     }
 
-    // Step C: Natural English re-ordering (e.g. "justice access for blind persons in nepal")
     return this.reorderToNaturalEnglish(translatedTokens.join(' '));
   }
 
-  /**
-   * Reorders translated word sequences into natural English noun-phrase structure
-   */
   private reorderToNaturalEnglish(translatedString: string): string {
     let str = translatedString.toLowerCase();
-
-    // Reorder "justice access" -> "access to justice"
     if (str.includes('justice') && str.includes('access') && !str.includes('access to justice')) {
       str = str.replace(/justice\s+access/g, 'access to justice');
     }
-
-    // Clean extra spaces
     return str.replace(/\s+/g, ' ').trim();
   }
 
-  /**
-   * Clean phonetic romanization without Unicode corruption
-   */
   private romanizeClean(devanagariText: string): string {
     const charMap: Record<string, string> = {
       'क': 'ka', 'ख': 'kha', 'ग': 'ga', 'घ': 'gha', 'ङ': 'nga',
@@ -214,9 +274,6 @@ export class SlugGeneratorService {
       .join('');
   }
 
-  /**
-   * Ensures slug uniqueness by appending incremental suffix if duplicate exists
-   */
   async ensureUniqueSlug(slug: string, tenantId = 'default-tenant-id', excludeId?: string): Promise<string> {
     let uniqueSlug = slug;
     let counter = 1;

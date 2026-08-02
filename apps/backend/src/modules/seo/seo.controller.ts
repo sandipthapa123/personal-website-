@@ -37,6 +37,23 @@ export class SeoController {
     };
   }
 
+  @Post('seo/compute-slug-state')
+  @ApiOperation({ summary: 'Compute intelligent slug state, mode (AUTO/MANUAL), 301 redirects, and published protection' })
+  async computeSlugState(@Body() body: {
+    title: string;
+    currentSlug?: string;
+    slugMode?: 'AUTO' | 'MANUAL';
+    status?: 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' | 'ARCHIVED';
+    action?: 'TITLE_CHANGE' | 'MANUAL_EDIT' | 'GENERATE_BUTTON' | 'RESET_TO_AUTO';
+    contentId?: string;
+  }) {
+    const state = await this.slugGenerator.computeSlugState(body);
+    return {
+      success: true,
+      data: state,
+    };
+  }
+
   // ─── 2. LIVE SEO ANALYSIS PANEL ──────────────────────────────────────────
 
   @Post('seo/analyze')
