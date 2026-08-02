@@ -15,7 +15,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.use(helmet());
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cookieParser());
   app.enableCors({
     origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
@@ -30,7 +30,9 @@ async function bootstrap() {
     }),
   );
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['admin', 'admin/(.*)', 'admin/login', 'admin/dashboard'],
+  });
 
   const config = new DocumentBuilder()
     .setTitle('thapasandip.com.np Engine CMS API')
@@ -44,6 +46,7 @@ async function bootstrap() {
   const port = process.env.PORT || 4000;
   await app.listen(port, '0.0.0.0');
   console.log(`🚀 CMS API Server running on http://localhost:${port}/api/v1`);
+  console.log(`🔑 Backend Admin Portal running on http://localhost:${port}/admin/login`);
   console.log(`📚 OpenAPI Docs available on http://localhost:${port}/api/docs`);
 }
 
