@@ -5,12 +5,15 @@ import { PrismaService } from '../../database/prisma.service';
 import { AdminService, IDashboardWidget } from './admin.service';
 import { formatDualCalendarDate } from '@cms/utilities';
 
+import { UniversalContentService } from '../content/universal-content.service';
+
 @ApiTags('Admin Console')
 @Controller()
 export class AdminController {
   constructor(
     private prisma: PrismaService,
     private adminService: AdminService,
+    private contentService: UniversalContentService,
   ) {}
 
   @Get('admin')
@@ -303,39 +306,120 @@ export class AdminController {
       </div>
     </div>
 
-    <!-- 2. CONTENT MANAGEMENT TAB -->
+    <!-- 2. UNIVERSAL CONTENT MANAGEMENT SYSTEM TAB -->
     <div id="tab-content" class="tab-section">
-      <div class="card">
-        <div class="card-title">
-          <span>Articles, Research &amp; Publications Directory</span>
-          <div>
-            <button class="btn btn-secondary" onclick="executeBulkAction('publish')">Bulk Publish</button>
-            <button class="btn btn-danger" onclick="executeBulkAction('delete')">Bulk Delete</button>
+      <div style="display: grid; grid-template-columns: 240px 1fr; gap: 20px;">
+        
+        <!-- BACKEND CONTENT SIDEBAR TREE -->
+        <div class="card" style="padding: 16px;">
+          <div style="font-weight: 800; font-size: 13px; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">
+            Content Directory
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;">
+            <button class="nav-btn active" style="text-align:left;" onclick="loadContentModule('ALL', this)">All Content</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Article', this)">Articles</button>
+            <button class="nav-btn" style="text-align:left;" onclick="showTab('pages')">Pages (Standalone)</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Poem', this)">Poems</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Research', this)">Research</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Publication', this)">Publications</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Project', this)">Projects</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Portfolio', this)">Portfolio</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('News', this)">News</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Event', this)">Events</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Resource', this)">Resources</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Download', this)">Downloads</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Announcement', this)">Announcements</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Testimonial', this)">Testimonials</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('FAQ', this)">FAQs</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('Documentation', this)">Documentation</button>
+
+            <div style="border-t: 1px solid #1e293b; margin: 8px 0; padding-top: 8px; font-weight: 700; color: #64748b; font-size: 11px; text-transform: uppercase;">
+              Classifications &amp; Trash
+            </div>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('ALL', this, 'categories')">Categories</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('ALL', this, 'tags')">Tags</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('ALL', this, 'series')">Series</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('ALL', this, 'authors')">Authors</button>
+            <button class="nav-btn" style="text-align:left;" onclick="loadContentModule('RECYCLE_BIN', this)">Recycle Bin</button>
           </div>
         </div>
-        <table>
-          <thead>
-            <tr><th><input type="checkbox" id="selectAll" /></th><th>Title</th><th>Category / Type</th><th>Status</th><th>Locale</th><th>Actions</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><input type="checkbox" class="item-select" value="1" /></td>
-              <td>Legal Capacity &amp; Supported Decision-Making in Nepal</td>
-              <td>Article / Legal Critique</td>
-              <td><span class="badge badge-green">PUBLISHED</span></td>
-              <td>en / ne</td>
-              <td><a href="/admin/editor" class="btn btn-secondary" style="padding:4px 8px; font-size:10px; text-decoration:none;">Edit in Visual Builder</a></td>
-            </tr>
-            <tr>
-              <td><input type="checkbox" class="item-select" value="2" /></td>
-              <td>Harmonizing Nepalese Disability Legislation with CRPD</td>
-              <td>Research Project</td>
-              <td><span class="badge badge-green">PUBLISHED</span></td>
-              <td>en</td>
-              <td><a href="/admin/editor" class="btn btn-secondary" style="padding:4px 8px; font-size:10px; text-decoration:none;">Edit in Visual Builder</a></td>
-            </tr>
-          </tbody>
-        </table>
+
+        <!-- MAIN UNIVERSAL CONTENT ENGINE -->
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          
+          <!-- QUICK ACTION BAR -->
+          <div class="card" style="padding: 16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+              <div>
+                <h3 id="moduleViewTitle" style="font-size: 16px; font-weight: 800; color: #fff; margin:0;">Universal Content Repository</h3>
+                <p style="font-size: 11px; color: #94a3b8; margin: 2px 0 0 0;">Single Source of Truth — Every item exists once but belongs to multiple Content Types</p>
+              </div>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="openUniversalEditor('Article')">+ New Article</button>
+                <button class="btn btn-secondary" onclick="openUniversalEditor('Poem')">+ New Poem</button>
+                <button class="btn btn-secondary" onclick="openUniversalEditor('Research')">+ New Research</button>
+                <button class="btn btn-secondary" onclick="openUniversalEditor('Publication')">+ New Publication</button>
+                <button class="btn btn-secondary" onclick="openUniversalEditor('Project')">+ New Project</button>
+                <button class="btn btn-secondary" onclick="openUniversalEditor('Event')">+ New Event</button>
+                <button class="btn btn-secondary" onclick="promptCreateCustomType()">+ Custom Type</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- UNIVERSAL DATA TABLE ENGINE -->
+          <div class="card">
+            <div class="card-title" style="flex-wrap:wrap; gap:10px;">
+              <div style="display:flex; items-center; gap:8px; flex:1;">
+                <input type="text" id="contentSearchInput" placeholder="Search title, summary, slug..." oninput="filterContentTable()" style="max-width:260px; padding:6px 10px; font-size:12px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff;" />
+                <select id="contentTypeFilter" onchange="filterContentTable()" style="padding:6px 10px; font-size:12px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff;">
+                  <option value="ALL">All Content Types</option>
+                  <option value="Article">Article</option>
+                  <option value="Poem">Poem</option>
+                  <option value="Research">Research</option>
+                  <option value="Publication">Publication</option>
+                  <option value="Project">Project</option>
+                  <option value="Portfolio">Portfolio</option>
+                  <option value="News">News</option>
+                  <option value="Event">Event</option>
+                  <option value="Resource">Resource</option>
+                  <option value="Download">Download</option>
+                  <option value="Announcement">Announcement</option>
+                  <option value="Testimonial">Testimonial</option>
+                  <option value="FAQ">FAQ</option>
+                  <option value="Documentation">Documentation</option>
+                </select>
+                <select id="contentStatusFilter" onchange="filterContentTable()" style="padding:6px 10px; font-size:12px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff;">
+                  <option value="ALL">All Statuses</option>
+                  <option value="PUBLISHED">Published</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="REVIEW">Review</option>
+                  <option value="ARCHIVED">Archived</option>
+                </select>
+              </div>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-secondary" onclick="executeBulkAction('publish')">Bulk Publish</button>
+                <button class="btn btn-danger" onclick="executeBulkAction('delete')">Bulk Delete</button>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="selectAllContent" onclick="toggleSelectAllContent(this)" /></th>
+                  <th>Title</th>
+                  <th>Content Types (Classifications)</th>
+                  <th>Status</th>
+                  <th>Locale</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="universalContentTableBody">
+                <tr><td colspan="6" style="text-align:center; padding:20px; color:#64748b;">Loading Universal Content Repository...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
       </div>
     </div>
 
@@ -461,7 +545,375 @@ export class AdminController {
     </div>
   </div>
 
+  <!-- Universal Content Editor Modal -->
+  <div id="universalEditorModal" class="cmd-modal" style="display:none;" onclick="if(event.target===this)closeUniversalEditor()">
+    <div class="cmd-box" style="max-width: 680px; text-align:left; max-height:90vh; overflow-y:auto; padding:24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid #1e293b; padding-bottom:12px;">
+        <h3 id="universalEditorTitle" style="font-size:16px; font-weight:800; color:#fff; margin:0;">Universal Content Editor</h3>
+        <button class="btn btn-secondary" onclick="closeUniversalEditor()">Close (ESC)</button>
+      </div>
+
+      <form id="universalEditorForm" onsubmit="saveUniversalContent(event)">
+        <input type="hidden" id="editContentId" value="" />
+        
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="color:#cbd5e1; font-weight:700; font-size:11px;">Title (English or Nepali)</label>
+          <input type="text" id="editContentTitle" required placeholder="Enter content title..." oninput="handleUniversalTitleInput()" style="width:100%; padding:10px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff;" />
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="color:#cbd5e1; font-weight:700; font-size:11px;">SEO Slug</label>
+            <span id="editSlugBadge" class="badge badge-green" style="font-size:9px;">Auto Generated</span>
+          </div>
+          <input type="text" id="editContentSlug" required placeholder="seo-friendly-slug" oninput="handleUniversalSlugEdit()" style="width:100%; padding:10px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff;" />
+        </div>
+
+        <!-- CONTENT TYPES MULTI-SELECT CHECKBOXES (SINGLE SOURCE OF TRUTH) -->
+        <div class="form-group" style="margin-bottom:12px; background:#090d16; padding:12px; border:1px solid #1e293b; border-radius:8px;">
+          <label style="color:#38bdf8; font-weight:800; font-size:11px; text-transform:uppercase; display:block; margin-bottom:6px;">
+            Content Types (Single Source of Truth Classifications)
+          </label>
+          <p style="font-size:10px; color:#94a3b8; margin-bottom:8px;">Select all modules where this single content record should appear:</p>
+          <div id="contentTypesCheckboxes" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:8px;">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="color:#cbd5e1; font-weight:700; font-size:11px;">Summary / Excerpt</label>
+          <textarea id="editContentSummary" rows="2" placeholder="Brief summary for listings, cards, and RSS feed..." style="width:100%; padding:10px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff; font-family:inherit;"></textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="color:#cbd5e1; font-weight:700; font-size:11px;">Rich Content (Text or Markdown)</label>
+          <textarea id="editContentBody" rows="5" placeholder="Write full article, poem, research findings, or publication abstract..." style="width:100%; padding:10px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff; font-family:inherit;"></textarea>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:16px;">
+          <div class="form-group">
+            <label style="color:#cbd5e1; font-weight:700; font-size:11px;">Category</label>
+            <input type="text" id="editContentCategory" placeholder="e.g. Legal Research, Disability Rights" style="width:100%; padding:8px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff;" />
+          </div>
+          <div class="form-group">
+            <label style="color:#cbd5e1; font-weight:700; font-size:11px;">Tags (Comma Separated)</label>
+            <input type="text" id="editContentTags" placeholder="UN CRPD, WCAG 2.2, Nepal Law" style="width:100%; padding:8px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff;" />
+          </div>
+          <div class="form-group">
+            <label style="color:#cbd5e1; font-weight:700; font-size:11px;">Workflow Status</label>
+            <select id="editContentStatus" style="width:100%; padding:8px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff;">
+              <option value="PUBLISHED">PUBLISHED</option>
+              <option value="DRAFT">DRAFT</option>
+              <option value="REVIEW">REVIEW</option>
+              <option value="ARCHIVED">ARCHIVED</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="color:#cbd5e1; font-weight:700; font-size:11px;">Locale / Language</label>
+            <select id="editContentLocale" style="width:100%; padding:8px; background:#020617; border:1px solid #1e293b; border-radius:6px; color:#fff;">
+              <option value="en">English (en)</option>
+              <option value="ne">Nepali (ne)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #1e293b; padding-top:12px;">
+          <button type="button" class="btn btn-secondary" onclick="closeUniversalEditor()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveContentBtn">Save Content Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
+    let currentContentModule = 'ALL';
+    let allRepositoryItems = [];
+    let availableContentTypes = [];
+
+    async function fetchUniversalContentRepository() {
+      try {
+        const res = await fetch('/api/v1/content?includeDeleted=true');
+        const data = await res.json();
+        if (data.success && data.data && data.data.items) {
+          allRepositoryItems = data.data.items;
+          filterContentTable();
+        }
+      } catch (err) {
+        console.error('Failed to fetch universal content repository', err);
+      }
+    }
+
+    async function fetchContentTypesList() {
+      try {
+        const res = await fetch('/api/v1/content/types');
+        const data = await res.json();
+        if (data.success && data.data) {
+          availableContentTypes = data.data;
+        }
+      } catch (err) {
+        console.error('Failed to fetch content types list', err);
+      }
+    }
+
+    function loadContentModule(contentType, btnElement, specialView) {
+      currentContentModule = contentType;
+      document.querySelectorAll('#tab-content .nav-btn').forEach(b => b.classList.remove('active'));
+      if (btnElement) btnElement.classList.add('active');
+
+      const titleEl = document.getElementById('moduleViewTitle');
+      if (contentType === 'RECYCLE_BIN') {
+        titleEl.innerText = 'Recycle Bin (Soft-Deleted Items)';
+      } else if (contentType === 'ALL') {
+        titleEl.innerText = specialView ? 'Classification: ' + specialView.toUpperCase() : 'Universal Content Repository (All Items)';
+      } else {
+        titleEl.innerText = 'Filtered Module View: ' + contentType + 's';
+      }
+
+      filterContentTable();
+    }
+
+    function filterContentTable() {
+      const searchInput = document.getElementById('contentSearchInput');
+      if (!searchInput) return;
+      const search = (searchInput.value || '').toLowerCase();
+      const typeFilter = document.getElementById('contentTypeFilter').value;
+      const statusFilter = document.getElementById('contentStatusFilter').value;
+
+      let filtered = [...allRepositoryItems];
+
+      if (currentContentModule === 'RECYCLE_BIN') {
+        filtered = filtered.filter(item => item.isDeleted);
+      } else {
+        filtered = filtered.filter(item => !item.isDeleted);
+        if (currentContentModule !== 'ALL') {
+          filtered = filtered.filter(item => item.contentTypes && item.contentTypes.some(t => t.toLowerCase() === currentContentModule.toLowerCase()));
+        }
+      }
+
+      if (typeFilter !== 'ALL') {
+        filtered = filtered.filter(item => item.contentTypes && item.contentTypes.some(t => t.toLowerCase() === typeFilter.toLowerCase()));
+      }
+
+      if (statusFilter !== 'ALL') {
+        filtered = filtered.filter(item => item.status === statusFilter);
+      }
+
+      if (search) {
+        filtered = filtered.filter(item =>
+          item.title.toLowerCase().includes(search) ||
+          (item.summary && item.summary.toLowerCase().includes(search)) ||
+          item.slug.toLowerCase().includes(search)
+        );
+      }
+
+      renderTableRows(filtered);
+    }
+
+    function renderTableRows(items) {
+      const tbody = document.getElementById('universalContentTableBody');
+      if (!tbody) return;
+      if (!items || items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:24px; color:#64748b;">No content items found for this module view.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = items.map(item => {
+        const badges = (item.contentTypes || []).map(t => '<span class="badge badge-sky" style="font-size:10px; margin-right:3px;">' + t + '</span>').join('');
+        const statusClass = item.status === 'PUBLISHED' ? 'badge-green' : (item.status === 'DRAFT' ? 'badge-amber' : 'badge-purple');
+        
+        let actionButtons = '';
+        if (item.isDeleted) {
+          actionButtons =
+            '<button class="btn btn-secondary" style="padding:4px 8px; font-size:10px;" onclick="restoreContentItem(\'' + item.id + '\')">Restore</button> ' +
+            '<button class="btn btn-danger" style="padding:4px 8px; font-size:10px;" onclick="permanentDeleteContentItem(\'' + item.id + '\')">Purge</button>';
+        } else {
+          actionButtons =
+            '<button class="btn btn-secondary" style="padding:4px 8px; font-size:10px;" onclick="openUniversalEditorForEdit(\'' + item.id + '\')">Quick Edit</button> ' +
+            '<a href="/admin/editor" class="btn btn-primary" style="padding:4px 8px; font-size:10px; text-decoration:none;">Visual Builder</a> ' +
+            '<button class="btn btn-danger" style="padding:4px 8px; font-size:10px;" onclick="softDeleteContentItem(\'' + item.id + '\')">Trash</button>';
+        }
+
+        return '<tr>' +
+          '<td><input type="checkbox" class="item-select" value="' + item.id + '" /></td>' +
+          '<td>' +
+            '<div style="font-weight:700; color:#f1f5f9;">' + item.title + '</div>' +
+            '<div style="font-size:10px; color:#64748b;">/' + item.slug + '</div>' +
+          '</td>' +
+          '<td>' + badges + '</td>' +
+          '<td><span class="badge ' + statusClass + '">' + item.status + '</span></td>' +
+          '<td>' + item.locale + '</td>' +
+          '<td style="display:flex; gap:4px;">' + actionButtons + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function openUniversalEditor(initialContentType) {
+      document.getElementById('universalEditorTitle').innerText = 'New Universal Content Item (' + initialContentType + ')';
+      document.getElementById('editContentId').value = '';
+      document.getElementById('editContentTitle').value = '';
+      document.getElementById('editContentSlug').value = '';
+      document.getElementById('editContentSummary').value = '';
+      document.getElementById('editContentBody').value = '';
+      document.getElementById('editContentCategory').value = 'General';
+      document.getElementById('editContentTags').value = '';
+      document.getElementById('editContentStatus').value = 'DRAFT';
+      document.getElementById('editContentLocale').value = 'en';
+
+      renderContentTypeCheckboxes([initialContentType || 'Article']);
+      document.getElementById('universalEditorModal').style.display = 'flex';
+    }
+
+    function openUniversalEditorForEdit(id) {
+      const item = allRepositoryItems.find(i => i.id === id);
+      if (!item) return;
+
+      document.getElementById('universalEditorTitle').innerText = 'Edit Universal Content Item (' + item.title + ')';
+      document.getElementById('editContentId').value = item.id;
+      document.getElementById('editContentTitle').value = item.title;
+      document.getElementById('editContentSlug').value = item.slug;
+      document.getElementById('editContentSummary').value = item.summary || '';
+      document.getElementById('editContentBody').value = item.content || '';
+      document.getElementById('editContentCategory').value = (item.categories || []).join(', ');
+      document.getElementById('editContentTags').value = (item.tags || []).join(', ');
+      document.getElementById('editContentStatus').value = item.status;
+      document.getElementById('editContentLocale').value = item.locale || 'en';
+
+      renderContentTypeCheckboxes(item.contentTypes || ['Article']);
+      document.getElementById('universalEditorModal').style.display = 'flex';
+    }
+
+    function renderContentTypeCheckboxes(selectedTypes) {
+      const container = document.getElementById('contentTypesCheckboxes');
+      if (!container) return;
+      const defaultTypes = ['Article', 'Poem', 'Research', 'Publication', 'Project', 'Portfolio', 'News', 'Event', 'Resource', 'Download', 'Announcement', 'Testimonial', 'FAQ', 'Documentation', 'Featured'];
+      const allTypes = Array.from(new Set([...defaultTypes, ...availableContentTypes.map(t => t.name)]));
+
+      container.innerHTML = allTypes.map(t => {
+        const isChecked = selectedTypes.includes(t) ? 'checked' : '';
+        return '<label style="display:flex; align-items:center; gap:6px; font-size:11px; color:#cbd5e1; cursor:pointer;">' +
+          '<input type="checkbox" name="contentTypes" value="' + t + '" ' + isChecked + ' />' +
+          '<span>' + t + '</span>' +
+        '</label>';
+      }).join('');
+    }
+
+    function closeUniversalEditor() {
+      document.getElementById('universalEditorModal').style.display = 'none';
+    }
+
+    async function handleUniversalTitleInput() {
+      const title = document.getElementById('editContentTitle').value;
+      const id = document.getElementById('editContentId').value;
+      if (!title || id) return;
+      const res = await fetch('/api/v1/seo/compute-slug-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, slugMode: 'AUTO', action: 'TITLE_CHANGE' })
+      });
+      const data = await res.json();
+      if (data.data && data.data.slug) {
+        document.getElementById('editContentSlug').value = data.data.slug;
+      }
+    }
+
+    function handleUniversalSlugEdit() {
+      const badge = document.getElementById('editSlugBadge');
+      if (badge) {
+        badge.className = 'badge badge-amber';
+        badge.innerText = 'Manual';
+      }
+    }
+
+    async function saveUniversalContent(e) {
+      e.preventDefault();
+      const id = document.getElementById('editContentId').value;
+      const title = document.getElementById('editContentTitle').value;
+      const slug = document.getElementById('editContentSlug').value;
+      const summary = document.getElementById('editContentSummary').value;
+      const content = document.getElementById('editContentBody').value;
+      const categoryStr = document.getElementById('editContentCategory').value;
+      const tagsStr = document.getElementById('editContentTags').value;
+      const status = document.getElementById('editContentStatus').value;
+      const locale = document.getElementById('editContentLocale').value;
+
+      const selectedBoxes = document.querySelectorAll('input[name="contentTypes"]:checked');
+      const contentTypes = Array.from(selectedBoxes).map(cb => cb.value);
+
+      if (contentTypes.length === 0) {
+        showMsg('Please select at least one Content Type classification.');
+        return;
+      }
+
+      const payload = {
+        title,
+        slug,
+        summary,
+        content,
+        contentTypes,
+        categories: categoryStr.split(',').map(s => s.trim()).filter(Boolean),
+        tags: tagsStr.split(',').map(s => s.trim()).filter(Boolean),
+        status,
+        locale
+      };
+
+      const url = id ? ('/api/v1/content/' + id) : '/api/v1/content';
+      const method = id ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showMsg(id ? 'Content item updated across all views!' : 'New content item created in Universal Repository!');
+        closeUniversalEditor();
+        await fetchUniversalContentRepository();
+      }
+    }
+
+    async function softDeleteContentItem(id) {
+      await fetch('/api/v1/content/' + id, { method: 'DELETE' });
+      showMsg('Item moved to Recycle Bin.');
+      await fetchUniversalContentRepository();
+    }
+
+    async function restoreContentItem(id) {
+      await fetch('/api/v1/content/' + id + '/restore', { method: 'POST' });
+      showMsg('Item restored along with all classifications!');
+      await fetchUniversalContentRepository();
+    }
+
+    async function permanentDeleteContentItem(id) {
+      await fetch('/api/v1/content/' + id + '/permanent', { method: 'DELETE' });
+      showMsg('Item permanently purged.');
+      await fetchUniversalContentRepository();
+    }
+
+    async function promptCreateCustomType() {
+      const name = prompt('Enter new Custom Content Type Name (e.g. Case Study, Policy Brief, Course, Judgment):');
+      if (!name || !name.trim()) return;
+
+      const res = await fetch('/api/v1/content/types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showMsg('New Custom Content Type "' + name.trim() + '" created successfully!');
+        await fetchContentTypesList();
+        openUniversalEditor(name.trim());
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchUniversalContentRepository();
+      fetchContentTypesList();
+    });
+
     function handleAdminLogout() {
       sessionStorage.removeItem('cms_token');
       localStorage.removeItem('admin_logged_in');
