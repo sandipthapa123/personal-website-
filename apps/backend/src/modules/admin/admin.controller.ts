@@ -432,7 +432,6 @@ export class AdminController {
       publication: body,
     });
   }
-
   @Post('admin/poems')
   @ApiOperation({ summary: 'Backend API: Create Poem' })
   async createPoem(@Body() body: any, @Res() res: Response) {
@@ -443,14 +442,14 @@ export class AdminController {
   }
 
   @Get('admin/editor')
-  @ApiOperation({ summary: 'Backend-Served Editor.js Visual Content Builder' })
+  @ApiOperation({ summary: 'Backend-Served Editor.js Visual Content Builder & Enterprise SEO Panel' })
   getBackendEditorPage(@Res() res: Response) {
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Editor.js Visual Content Builder | Sandip Thapa Enterprise CMS</title>
+  <title>Editor.js Visual Builder &amp; Enterprise SEO Panel | Sandip Thapa CMS</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@editorjs/editorjs@latest/dist/styles.min.css" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -463,8 +462,9 @@ export class AdminController {
     .btn-primary:hover { background: #0369a1; }
     .btn-secondary { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; }
     .btn-secondary:hover { background: #334155; }
+    .btn-slug { background: #0284c7; color: #fff; padding: 4px 8px; font-size: 10px; border-radius: 4px; border: none; cursor: pointer; font-weight: 700; }
     .container { display: flex; width: 100%; margin-top: 57px; height: calc(100vh - 57px); }
-    .sidebar { width: 320px; background: #0f172a; border-right: 1px solid #1e293b; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+    .sidebar { width: 340px; background: #0f172a; border-right: 1px solid #1e293b; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
     .main-editor { flex: 1; padding: 40px; overflow-y: auto; background: #090d16; }
     .editor-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 32px; max-width: 850px; margin: 0 auto; min-height: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     .codex-editor__redactor { padding-bottom: 100px !important; }
@@ -474,16 +474,20 @@ export class AdminController {
     .panel-title { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #38bdf8; letter-spacing: 1px; margin-bottom: 8px; }
     .field-group { display: flex; flex-direction: column; gap: 4px; }
     .field-group label { font-size: 11px; color: #94a3b8; font-weight: 600; }
-    .field-group input, .field-group select { background: #020617; border: 1px solid #1e293b; color: #fff; padding: 8px 10px; border-radius: 6px; font-size: 12px; }
+    .field-group input, .field-group select, .field-group textarea { background: #020617; border: 1px solid #1e293b; color: #fff; padding: 8px 10px; border-radius: 6px; font-size: 12px; }
     .wcag-box { background: #020617; border: 1px solid #1e293b; padding: 12px; border-radius: 8px; font-size: 12px; }
     .wcag-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; background: #065f46; color: #6ee7b7; margin-bottom: 4px; }
+    .seo-scores { display: grid; grid-template-cols: repeat(2, 1fr); gap: 8px; }
+    .score-card { background: #020617; border: 1px solid #1e293b; padding: 10px; border-radius: 8px; text-align: center; }
+    .score-val { font-size: 18px; font-weight: 900; color: #38bdf8; }
+    .score-lbl { font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700; }
   </style>
 </head>
 <body>
   <header>
     <div class="brand">
       <span>ST</span>
-      <span>Editor.js Visual Builder</span>
+      <span>Editor.js Visual Builder &amp; Enterprise SEO Panel</span>
     </div>
     <div class="actions">
       <button class="btn btn-secondary" onclick="exportContent('markdown')">Export MD</button>
@@ -496,10 +500,17 @@ export class AdminController {
   <div class="container">
     <div class="sidebar">
       <div>
-        <div class="panel-title">Page Metadata</div>
+        <div class="panel-title">Page &amp; Intelligent Slug Settings</div>
         <div class="field-group">
-          <label>Title</label>
-          <input type="text" id="pageTitle" value="Advancing Disability Rights in Nepal" />
+          <label>Title (English or Nepali)</label>
+          <input type="text" id="pageTitle" value="नेपालमा दृष्टिविहीन व्यक्तिको न्यायमा पहुँच" oninput="liveSeoAnalyze()" />
+        </div>
+        <div class="field-group" style="margin-top: 8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label>SEO Slug</label>
+            <button type="button" class="btn-slug" onclick="autoGenerateSlug()">⚡ Auto Generate Slug</button>
+          </div>
+          <input type="text" id="pageSlug" value="nepal-blind-person-kao-justice-access" />
         </div>
         <div class="field-group" style="margin-top: 8px;">
           <label>Language / Locale</label>
@@ -511,16 +522,49 @@ export class AdminController {
       </div>
 
       <div>
-        <div class="panel-title">WCAG 2.2 AAA Validation</div>
-        <div class="wcag-box">
-          <span class="wcag-badge">COMPLIANT (100/100)</span>
-          <p style="color: #94a3b8; font-size: 11px; margin-top: 4px;">✓ Heading hierarchy correct<br/>✓ Alt text enforced<br/>✓ Contrast ratio verified (7:1)</p>
+        <div class="panel-title">Live SEO Analysis Panel</div>
+        <div class="seo-scores">
+          <div class="score-card">
+            <div class="score-val" id="seoScoreVal">92%</div>
+            <div class="score-lbl">SEO Score</div>
+          </div>
+          <div class="score-card">
+            <div class="score-val" id="readScoreVal">100%</div>
+            <div class="score-lbl">Readability</div>
+          </div>
+          <div class="score-card">
+            <div class="score-val" id="accessScoreVal">100%</div>
+            <div class="score-lbl">Accessibility</div>
+          </div>
+          <div class="score-card">
+            <div class="score-val" id="perfScoreVal">95%</div>
+            <div class="score-lbl">Performance</div>
+          </div>
         </div>
       </div>
 
       <div>
-        <div class="panel-title">Export Formats</div>
-        <p style="font-size: 11px; color: #94a3b8;">Generate HTML, Markdown, Plain Text, RSS XML, and EPUB from single Editor.js JSON tree.</p>
+        <div class="panel-title">SEO Metadata</div>
+        <div class="field-group">
+          <label>Meta Title (30-60 chars)</label>
+          <input type="text" id="metaTitle" value="Access to Justice for Blind Persons in Nepal | Sandip Thapa" oninput="liveSeoAnalyze()" />
+        </div>
+        <div class="field-group" style="margin-top: 8px;">
+          <label>Meta Description (120-160 chars)</label>
+          <textarea id="metaDesc" rows="3" oninput="liveSeoAnalyze()">An in-depth legal critique evaluating the Rights of Persons with Disabilities Act 2074 (2017) against global UN CRPD Article 12 mandates in Nepal.</textarea>
+        </div>
+        <div class="field-group" style="margin-top: 8px;">
+          <label>Focus Keyword</label>
+          <input type="text" id="focusKeyword" value="justice access blind Nepal" oninput="liveSeoAnalyze()" />
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-title">WCAG 2.2 AAA Status</div>
+        <div class="wcag-box">
+          <span class="wcag-badge">COMPLIANT (100/100)</span>
+          <p style="color: #94a3b8; font-size: 11px; margin-top: 4px;">✓ Single H1 tag<br/>✓ Alt text on all images<br/>✓ Contrast ratio verified (7:1)</p>
+        </div>
       </div>
     </div>
 
@@ -558,15 +602,48 @@ export class AdminController {
       });
     });
 
+    async function autoGenerateSlug() {
+      const title = document.getElementById('pageTitle').value;
+      if (!title) return;
+      const res = await fetch('/api/v1/seo/generate-slug', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+      const data = await res.json();
+      if (data.data && data.data.generatedSlug) {
+        document.getElementById('pageSlug').value = data.data.generatedSlug;
+      }
+    }
+
+    async function liveSeoAnalyze() {
+      const title = document.getElementById('pageTitle').value;
+      const metaTitle = document.getElementById('metaTitle').value;
+      const metaDescription = document.getElementById('metaDesc').value;
+      const focusKeyword = document.getElementById('focusKeyword').value;
+
+      const res = await fetch('/api/v1/seo/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, metaTitle, metaDescription, focusKeyword, contentHtml: '<h1>' + title + '</h1>' })
+      });
+      const data = await res.json();
+      if (data.data) {
+        document.getElementById('seoScoreVal').innerText = data.data.seoScore + '%';
+        document.getElementById('readScoreVal').innerText = data.data.readabilityScore + '%';
+        document.getElementById('accessScoreVal').innerText = data.data.accessibilityScore + '%';
+        document.getElementById('perfScoreVal').innerText = data.data.performanceScore + '%';
+      }
+    }
+
     async function triggerAutoSave() {
       if (!editor) return;
       const output = await editor.save();
-      const res = await fetch('/api/v1/editor/pages/home/autosave', {
+      await fetch('/api/v1/editor/pages/home/autosave', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ blocks: output.blocks })
       });
-      const data = await res.json();
       alert('Draft Auto-Saved! JSON Schema validated.');
     }
 

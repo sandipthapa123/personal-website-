@@ -24,6 +24,7 @@ import { PluginModule } from './modules/plugins/plugin.module';
 import { AiModule } from './modules/ai/ai.module';
 import { HealthModule } from './modules/health/health.module';
 import { EditorModule } from './modules/editor/editor.module';
+import { SeoModule } from './modules/seo/seo.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { EditorModule } from './modules/editor/editor.module';
     AiModule,
     HealthModule,
     EditorModule,
+    SeoModule,
   ],
 })
 export class AppModule {}

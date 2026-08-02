@@ -31,7 +31,18 @@ async function bootstrap() {
   );
 
   app.setGlobalPrefix('api/v1', {
-    exclude: ['admin', 'admin/(.*)', 'admin/login', 'admin/dashboard'],
+    exclude: [
+      'admin',
+      'admin/(.*)',
+      'sitemap.xml',
+      'news-sitemap.xml',
+      'image-sitemap.xml',
+      'video-sitemap.xml',
+      'robots.txt',
+      'rss.xml',
+      'atom.xml',
+      'feed.json',
+    ],
   });
 
   const config = new DocumentBuilder()
