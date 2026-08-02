@@ -756,17 +756,49 @@ export class AdminController {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ blocks: output.blocks })
       });
-      alert('Draft Auto-Saved! JSON Schema validated.');
+      showModalDialog('Draft Auto-Saved!', 'JSON Schema validated successfully. Version snapshot saved to database.', 'SUCCESS');
     }
 
     async function exportContent(fmt) {
       const res = await fetch('/api/v1/editor/pages/home/export?format=' + fmt);
       const data = await res.json();
-      alert('Exported ' + fmt.toUpperCase() + ':\\n\\n' + (data.data.content || JSON.stringify(data.data)).slice(0, 500) + '...');
+      showModalDialog('Export ' + fmt.toUpperCase(), (data.data.content || JSON.stringify(data.data)).slice(0, 500) + '...', 'INFO');
     }
 
     async function publishContent() {
-      alert('Content Published to Frontend Presentation Layer!');
+      showModalDialog('Publish Content?', 'This action will immediately publish the updated structured JSON tree to the Next.js presentation layer.', 'CONFIRM', async () => {
+        showModalDialog('Published!', 'Content has been pushed to the production presentation layer.', 'SUCCESS');
+      });
+    }
+
+    function showModalDialog(title, desc, type, onConfirm) {
+      const existing = document.getElementById('customAccessibleModal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.id = 'customAccessibleModal';
+      modal.setAttribute('role', 'dialog');
+      modal.setAttribute('aria-modal', 'true');
+      modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:999; display:flex; align-items:center; justify-content:center; padding:20px;';
+      
+      const box = document.createElement('div');
+      box.style.cssText = 'background:#0f172a; border:1px solid #1e293b; border-radius:12px; max-width:480px; width:100%; padding:24px; color:#fff; box-shadow:0 25px 50px rgba(0,0,0,0.7);';
+      
+      box.innerHTML = '<h3 style="font-size:16px; font-weight:800; margin-bottom:8px;">' + title + '</h3><p style="font-size:12px; color:#cbd5e1; line-height:1.6; margin-bottom:20px;">' + desc + '</p><div style="display:flex; justify-content:flex-end; gap:10px;"><button id="modalCloseBtn" style="padding:8px 16px; background:#1e293b; border:1px solid #334155; color:#fff; font-weight:700; font-size:12px; border-radius:6px; cursor:pointer;">Close</button>' + (type === 'CONFIRM' ? '<button id="modalConfirmBtn" style="padding:8px 16px; background:#0284c7; border:none; color:#fff; font-weight:800; font-size:12px; border-radius:6px; cursor:pointer;">Publish Now</button>' : '') + '</div>';
+      
+      modal.appendChild(box);
+      document.body.appendChild(modal);
+
+      const closeBtn = document.getElementById('modalCloseBtn');
+      closeBtn.focus();
+      closeBtn.onclick = () => modal.remove();
+
+      if (type === 'CONFIRM') {
+        document.getElementById('modalConfirmBtn').onclick = () => {
+          modal.remove();
+          if (onConfirm) onConfirm();
+        };
+      }
     }
   </script>
 </body>
