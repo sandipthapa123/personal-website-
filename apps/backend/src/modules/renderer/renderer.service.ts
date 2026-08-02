@@ -9,11 +9,13 @@ export class RendererService {
   constructor(private prisma: PrismaService) {}
 
   async renderPageBySlug(tenantId: string, slug: string, lang = 'en'): Promise<IPageRenderSchema> {
+    const cleanSlug = slug.replace(/^\/+|\/+$/g, '') || 'home';
+
     try {
       const page = await this.prisma.page.findFirst({
         where: {
           tenant_id: tenantId,
-          slug,
+          slug: cleanSlug,
           status: 'PUBLISHED',
         },
         include: {
@@ -42,15 +44,11 @@ export class RendererService {
         return this.formatPageResponse(page, tenantId, lang);
       }
     } catch (err) {
-      // Fallback to default backend-driven schema if DB is offline or empty
+      // Fallback to dynamic schema generator
     }
 
-    // Default Backend-Driven Homepage Contract (12 Sections)
-    if (slug === '/' || slug === 'home' || slug === '') {
-      return this.getDefaultHomepageSchema(tenantId, lang);
-    }
-
-    throw new NotFoundException(`Page with slug '${slug}' not found for tenant '${tenantId}'`);
+    // Dynamic Backend-Driven Section Route Resolvers
+    return this.getDynamicSectionSchema(cleanSlug, tenantId, lang);
   }
 
   private formatPageResponse(page: any, tenantId: string, lang: string): IPageRenderSchema {
@@ -105,7 +103,7 @@ export class RendererService {
       },
       seo: {
         metaTitle: pageSeo.meta_title || page.title,
-        metaDescription: pageSeo.meta_description || 'Sandip Thapa Personal CMS Engine Platform',
+        metaDescription: pageSeo.meta_description || 'Sandip Thapa Academic & Legal Research Engine',
         canonicalUrl: pageSeo.canonical_url || `https://thapasandip.com.np/${page.slug}`,
         openGraphImage: pageSeo.og_image || undefined,
       },
@@ -117,9 +115,103 @@ export class RendererService {
     };
   }
 
-  private getDefaultHomepageSchema(tenantId: string, lang: string): IPageRenderSchema {
-    const nowDual = formatDualCalendarDate(new Date());
+  private getDynamicSectionSchema(slug: string, tenantId: string, lang: string): IPageRenderSchema {
+    const formattedTitle = slug
+      .split('/')
+      .pop()!
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, (l) => l.toUpperCase());
 
+    const isHomepage = slug === 'home' || slug === '' || slug === '/';
+
+    if (isHomepage) {
+      return this.get14SectionHomepageSchema(tenantId, lang);
+    }
+
+    if (slug.startsWith('dashboard')) {
+      return this.getPersonalDashboardSchema(tenantId, lang);
+    }
+
+    return {
+      tenant: {
+        id: tenantId,
+        slug: 'default',
+        name: 'Sandip Thapa - Legal Scholar & Academic Researcher',
+        domain: 'thapasandip.com.np',
+      },
+      page: {
+        id: `page-${slug}`,
+        slug: `/${slug}`,
+        title: `${formattedTitle} | Sandip Thapa`,
+        locale: lang,
+        status: 'PUBLISHED' as ContentStatus,
+        publishedAt: new Date().toISOString(),
+      },
+      seo: {
+        metaTitle: `${formattedTitle} | Sandip Thapa Legal & Academic Engine`,
+        metaDescription: `Explore ${formattedTitle} on the personal academic CMS platform of Sandip Thapa.`,
+        canonicalUrl: `https://thapasandip.com.np/${slug}`,
+      },
+      layout: {
+        id: `layout-${slug}`,
+        name: `${formattedTitle} Dynamic Section Layout`,
+        regions: {
+          header: [],
+          sidebar: [
+            {
+              blockId: `sidebar-author-${slug}`,
+              type: 'AUTHOR_CARD',
+              props: {
+                name: 'Sandip Thapa',
+                title: 'Legal Scholar & Disability Rights Researcher',
+                bio: 'Specializing in legal research, UN CRPD harmonization, inclusive education, and accessible digital standards.',
+                orcid: '0000-0002-1234-5678',
+                scholar: 'https://scholar.google.com',
+                linkedin: 'https://linkedin.com',
+                website: 'https://thapasandip.com.np',
+              },
+            },
+          ],
+          main: [
+            {
+              blockId: `hero-section-${slug}`,
+              type: 'HERO',
+              props: {
+                title: formattedTitle,
+                subtitle: `Backend-Driven Section: /${slug}`,
+                tagline: 'Academic Research, Legal Precedents & Inclusive Policy',
+                primaryCta: { label: 'Explore Content', url: '#content' },
+              },
+            },
+            {
+              blockId: `content-grid-${slug}`,
+              type: 'CARD_GRID',
+              props: {
+                heading: `All Items under ${formattedTitle}`,
+                items: [
+                  {
+                    title: `Harmonizing Nepalese Disability Legislation with International Standards`,
+                    summary: `Evaluation of the Rights of Persons with Disabilities Act 2074 (2017) against global UN CRPD mandates.`,
+                    publishedBs: '2083 Shrawan 17',
+                    publishedAd: '1 August 2026',
+                    timeNpt: '18:35 NPT',
+                    wordCount: 1420,
+                    readingTime: 7,
+                    views: 3420,
+                    uniqueVisitors: 1890,
+                    citationApa: 'Thapa, S. (2026). Harmonizing Nepalese Disability Legislation. Kathmandu Law Review, 14(2), 45-68.',
+                  },
+                ],
+              },
+            },
+          ],
+          footer: [],
+        },
+      },
+    };
+  }
+
+  private get14SectionHomepageSchema(tenantId: string, lang: string): IPageRenderSchema {
     return {
       tenant: {
         id: tenantId,
@@ -141,8 +233,8 @@ export class RendererService {
         canonicalUrl: 'https://thapasandip.com.np',
       },
       layout: {
-        id: 'default-homepage-layout',
-        name: '12-Section Backend-Driven Homepage Layout',
+        id: '14-section-homepage-layout',
+        name: '14-Section Backend-Driven Homepage Layout',
         regions: {
           header: [],
           sidebar: [
@@ -153,7 +245,7 @@ export class RendererService {
                 name: 'Sandip Thapa',
                 title: 'Legal Scholar & Disability Rights Researcher',
                 bio: 'Dedicated to legal research, disability rights advocacy, accessible design, and literary translation in Nepal.',
-                orcid: 'https://orcid.org',
+                orcid: '0000-0002-1234-5678',
                 scholar: 'https://scholar.google.com',
                 linkedin: 'https://linkedin.com',
                 website: 'https://thapasandip.com.np',
@@ -173,24 +265,29 @@ export class RendererService {
               },
             },
             {
-              blockId: 'about-2',
+              blockId: 'intro-2',
               type: 'TEXT_BLOCK',
               props: {
-                heading: 'About Me',
+                heading: 'Short Introduction',
                 content: 'Welcome to my academic platform. I am a legal researcher and human rights practitioner based in Nepal, specializing in disability rights law, inclusive policy analysis, literary translation, and digital accessibility.',
               },
             },
             {
-              blockId: 'featured-research-3',
-              type: 'RESEARCH_LIST',
+              blockId: 'featured-article-3',
+              type: 'CARD_GRID',
               props: {
-                heading: 'Featured Research Projects',
+                heading: 'Featured Article',
                 items: [
                   {
-                    title: 'Disability Rights & Legal Capacity under UN CRPD in Nepal',
-                    status: 'Ongoing Project',
-                    timeline: '2025 - 2026',
-                    description: 'Comprehensive analysis of legal capacity frameworks and supported decision-making models in Nepalese jurisprudence.',
+                    title: 'Legal Capacity & Supported Decision-Making in Nepalese Jurisprudence',
+                    summary: 'An analysis of Article 12 of the UN Convention on the Rights of Persons with Disabilities (CRPD) and its implementation in Nepalese courts.',
+                    publishedBs: '2083 Shrawan 15',
+                    publishedAd: '30 July 2026',
+                    timeNpt: '14:20 NPT',
+                    readingTime: 9,
+                    wordCount: 2150,
+                    views: 4890,
+                    uniqueVisitors: 2310,
                   },
                 ],
               },
@@ -214,7 +311,22 @@ export class RendererService {
               },
             },
             {
-              blockId: 'latest-publications-5',
+              blockId: 'featured-research-5',
+              type: 'RESEARCH_LIST',
+              props: {
+                heading: 'Featured Research Projects',
+                items: [
+                  {
+                    title: 'Disability Rights & Legal Capacity under UN CRPD in Nepal',
+                    status: 'Ongoing Project',
+                    timeline: '2025 - 2026',
+                    description: 'Comprehensive analysis of legal capacity frameworks and supported decision-making models in Nepalese jurisprudence.',
+                  },
+                ],
+              },
+            },
+            {
+              blockId: 'latest-publications-6',
               type: 'PUBLICATION_LIST',
               props: {
                 heading: 'Latest Publications & Citations',
@@ -229,10 +341,10 @@ export class RendererService {
               },
             },
             {
-              blockId: 'featured-poems-6',
+              blockId: 'featured-poem-7',
               type: 'CARD_GRID',
               props: {
-                heading: 'Featured Poems & Literary Works',
+                heading: 'Featured Poem',
                 items: [
                   {
                     title: 'Echoes of Silence (मौनताका प्रतिध्वनिहरू)',
@@ -244,10 +356,10 @@ export class RendererService {
               },
             },
             {
-              blockId: 'projects-7',
+              blockId: 'featured-project-8',
               type: 'CARD_GRID',
               props: {
-                heading: 'Projects & Digital Initiatives',
+                heading: 'Featured Project & Software',
                 items: [
                   {
                     title: 'Nepal Legal Accessibility Knowledge Engine',
@@ -257,10 +369,37 @@ export class RendererService {
               },
             },
             {
-              blockId: 'media-8',
+              blockId: 'stats-9',
+              type: 'STATS',
+              props: {
+                heading: 'Statistics & Impact',
+                stats: [
+                  { label: 'Published Papers', value: '18+' },
+                  { label: 'Research Citations', value: '340+' },
+                  { label: 'Policy Briefs Consulted', value: '25+' },
+                  { label: 'Total Readers', value: '50,000+' },
+                ],
+              },
+            },
+            {
+              blockId: 'upcoming-events-10',
               type: 'CARD_GRID',
               props: {
-                heading: 'Media & Speaking Engagements',
+                heading: 'Upcoming Events & Speaking',
+                items: [
+                  {
+                    title: 'National Symposium on Disability Rights & Constitutional Reforms',
+                    location: 'Kathmandu, Nepal',
+                    date: '2083 Bhadra 15 / September 2026',
+                  },
+                ],
+              },
+            },
+            {
+              blockId: 'media-11',
+              type: 'CARD_GRID',
+              props: {
+                heading: 'Media & Interviews',
                 items: [
                   {
                     title: 'Keynote Address: Digital Accessibility & Human Rights in South Asia',
@@ -271,23 +410,10 @@ export class RendererService {
               },
             },
             {
-              blockId: 'stats-9',
-              type: 'STATS',
-              props: {
-                heading: 'Academic & Social Impact',
-                stats: [
-                  { label: 'Published Papers', value: '18+' },
-                  { label: 'Research Citations', value: '340+' },
-                  { label: 'Policy Briefs Consulted', value: '25+' },
-                  { label: 'Total Readers', value: '50,000+' },
-                ],
-              },
-            },
-            {
-              blockId: 'testimonials-10',
+              blockId: 'testimonials-12',
               type: 'CARD_GRID',
               props: {
-                heading: 'Testimonials & Endorsements',
+                heading: 'Testimonials',
                 items: [
                   {
                     name: 'Dr. Ramesh Adhikari',
@@ -298,19 +424,89 @@ export class RendererService {
               },
             },
             {
-              blockId: 'newsletter-11',
+              blockId: 'newsletter-13',
               type: 'CONTACT_FORM',
               props: {
-                heading: 'Subscribe to Academic Newsletter',
+                heading: 'Newsletter Subscription',
                 description: 'Receive quarterly updates on legal research, policy papers, and literary translations.',
               },
             },
             {
-              blockId: 'contact-12',
+              blockId: 'contact-14',
               type: 'CONTACT_FORM',
               props: {
-                heading: 'Get in Touch',
+                heading: 'Contact',
                 description: 'For research inquiries, keynote speaking, or legal consulting, reach out via the secure portal.',
+              },
+            },
+          ],
+          footer: [],
+        },
+      },
+    };
+  }
+
+  private getPersonalDashboardSchema(tenantId: string, lang: string): IPageRenderSchema {
+    return {
+      tenant: {
+        id: tenantId,
+        slug: 'default',
+        name: 'Sandip Thapa Personal CMS Platform',
+        domain: 'thapasandip.com.np',
+      },
+      page: {
+        id: 'user-dashboard-id',
+        slug: '/dashboard',
+        title: 'Personal Dashboard | Sandip Thapa',
+        locale: lang,
+        status: 'PUBLISHED' as ContentStatus,
+        publishedAt: new Date().toISOString(),
+      },
+      seo: {
+        metaTitle: 'Personal Dashboard | Sandip Thapa',
+        metaDescription: 'User account dashboard for saved articles, bookmarks, downloads, and accessibility preferences.',
+        canonicalUrl: 'https://thapasandip.com.np/dashboard',
+      },
+      layout: {
+        id: 'user-dashboard-layout',
+        name: 'Personal User Dashboard Layout',
+        regions: {
+          header: [],
+          sidebar: [
+            {
+              blockId: 'user-profile-widget',
+              type: 'AUTHOR_CARD',
+              props: {
+                name: 'Sandip Thapa User Account',
+                title: 'Registered Academic Scholar',
+                bio: 'Manage saved research papers, reading history, notifications, and WCAG 2.2 AAA accessibility controls.',
+              },
+            },
+          ],
+          main: [
+            {
+              blockId: 'dash-hero',
+              type: 'HERO',
+              props: {
+                title: 'Personal Account Dashboard',
+                subtitle: 'Manage your saved research, reading history, bookmarks, and preferences.',
+                tagline: 'Backend-Driven User Account Engine',
+              },
+            },
+            {
+              blockId: 'dash-features',
+              type: 'CARD_GRID',
+              props: {
+                heading: 'Dashboard Navigation & Tools',
+                items: [
+                  { title: '📌 Saved Articles', summary: '3 Articles saved to your reading list.' },
+                  { title: '📖 Reading History', summary: '12 Items viewed in the last 30 days.' },
+                  { title: '🔖 Bookmarks', summary: 'Quick access to key legal capacity research papers.' },
+                  { title: '📥 Downloads', summary: 'PDF downloads of journal papers and policy briefs.' },
+                  { title: '🔔 Notifications', summary: '2 Unread alerts on new publication releases.' },
+                  { title: '👤 User Profile', summary: 'Manage account credentials and contact info.' },
+                  { title: '♿ Accessibility Preferences', summary: 'Customize high-contrast mode, font scale, and dyslexia font.' },
+                ],
               },
             },
           ],

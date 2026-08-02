@@ -83,7 +83,7 @@ export class AdminController {
           status.style.display = 'block';
           status.innerText = '✓ Authenticated! Loading Backend Dashboard...';
           setTimeout(() => {
-            window.location.href = '/admin/dashboard';
+            window.location.href = '/admin';
           }, 800);
         } else {
           throw new Error(data.message || 'Login failed');
@@ -102,8 +102,9 @@ export class AdminController {
     return res.status(200).send(html);
   }
 
-  @Get('admin/dashboard')
   @Get('admin')
+  @Get('admin/')
+  @Get('admin/dashboard')
   @ApiOperation({ summary: 'Backend-Served Admin Dashboard HTML Page' })
   getBackendAdminDashboardPage(@Res() res: Response) {
     const html = `<!DOCTYPE html>
@@ -152,7 +153,7 @@ export class AdminController {
   <main>
     <div class="banner">
       <h2>Backend Admin Single Source of Truth</h2>
-      <p>All administrative controls, user authentication, navigation menus, page region blocks, feature flags, and design token compilers exist exclusively in the NestJS Backend. Frontend is strictly a presentation layer.</p>
+      <p>Direct HTTP access to http://localhost:4000/admin serving backend metrics, content schemas, navigation trees, and diagnostics without redirection.</p>
     </div>
 
     <div class="grid">
