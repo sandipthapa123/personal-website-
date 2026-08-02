@@ -5,6 +5,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PrismaModule } from './database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { NavigationModule } from './modules/navigation/navigation.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { TenantConfigModule } from './modules/config/tenant-config.module';
 import { FeatureFlagsModule } from './modules/feature-flags/feature-flags.module';
@@ -28,6 +29,7 @@ import { HealthModule } from './modules/health/health.module';
     PrismaModule,
     AuthModule,
     AdminModule,
+    NavigationModule,
     PermissionsModule,
     TenantConfigModule,
     FeatureFlagsModule,

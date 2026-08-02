@@ -350,25 +350,43 @@ model MediaFile {
 }
 
 // ----------------------------------------------------
-// 7. CONTENT DOMAINS (BLOG, PUBLICATIONS, RESEARCH)
+// 7. CONTENT DOMAINS (BLOG, RESEARCH, POEMS, MEDIA, SERVICES)
 // ----------------------------------------------------
+
+model Series {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  posts       BlogPost[]
+  poems       Poem[]
+}
 
 model BlogPost {
   id           String        @id @default(uuid()) @db.Uuid
   tenant_id    String        @db.Uuid
+  series_id    String?       @db.Uuid
   slug         String        @unique
   title        String
+  subtitle     String?
+  cover_image  String?
   summary      String?
   content      String        @db.Text
   locale       String        @default("en")
   status       ContentStatus @default(DRAFT)
   reading_time Int           @default(0)
+  word_count   Int           @default(0)
+  views        Int           @default(0)
+  unique_views Int           @default(0)
+  author_name  String        @default("Sandip Thapa")
+  author_url   String        @default("https://thapasandip.com.np/about")
   published_at DateTime?
   seo_metadata Json?
   created_at   DateTime      @default(now())
   updated_at   DateTime      @updatedAt
 
   tenant       Tenant        @relation(fields: [tenant_id], references: [id])
+  series       Series?       @relation(fields: [series_id], references: [id])
   categories   PostCategory[]
   tags         PostTag[]
 }
@@ -407,14 +425,19 @@ model Publication {
   id             String    @id @default(uuid()) @db.Uuid
   tenant_id      String?   @db.Uuid
   title          String
+  subtitle       String?
   authors        String[]
   abstract       String    @db.Text
+  type           String    @default("journal") // journal, book_chapter, conference, book
   journal        String?
   publisher      String?
   doi            String?   @unique
   citation_apa   String?
   citation_mla   String?
   citation_chi   String?
+  citation_oscola String?
+  citation_bluebook String?
+  citation_bibtex String?
   published_date DateTime?
   pdf_url        String?
   created_at     DateTime  @default(now())
@@ -425,12 +448,45 @@ model ResearchProject {
   tenant_id   String?  @db.Uuid
   title       String
   slug        String   @unique
-  status      String
+  type        String   @default("project") // project, working_paper, policy_brief, report
+  status      String   @default("active")
   description String   @db.Text
   partners    String[]
   timeline    String?
   outputs     Json?
   created_at  DateTime @default(now())
+}
+
+model Poem {
+  id           String        @id @default(uuid()) @db.Uuid
+  tenant_id    String        @db.Uuid
+  series_id    String?       @db.Uuid
+  slug         String        @unique
+  title        String
+  collection   String        @default("General")
+  content      String        @db.Text
+  author_name  String        @default("Sandip Thapa")
+  published_at DateTime?
+  created_at   DateTime      @default(now())
+  series       Series?       @relation(fields: [series_id], references: [id])
+}
+
+model ServiceItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  title       String
+  description String   @db.Text
+  icon        String?
+  order       Int      @default(0)
+}
+
+model Testimonial {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  role       String
+  organization String?
+  quote      String   @db.Text
+  avatar_url String?
 }
 
 // ----------------------------------------------------
