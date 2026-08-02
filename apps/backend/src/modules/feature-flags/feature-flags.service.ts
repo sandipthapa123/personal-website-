@@ -11,7 +11,7 @@ export class FeatureFlagsService {
     });
 
     return flags.reduce((acc: Record<string, boolean>, flag: any) => {
-      acc[flag.flag_key] = flag.is_enabled;
+      acc[flag.key] = flag.is_enabled;
       return acc;
     }, {});
   }
@@ -19,10 +19,7 @@ export class FeatureFlagsService {
   async isFeatureEnabled(tenantId: string, flagKey: string): Promise<boolean> {
     const flag = await this.prisma.featureFlag.findUnique({
       where: {
-        tenant_id_flag_key: {
-          tenant_id: tenantId,
-          flag_key: flagKey,
-        },
+        key: flagKey,
       },
     });
 
@@ -37,10 +34,7 @@ export class FeatureFlagsService {
   ) {
     return this.prisma.featureFlag.upsert({
       where: {
-        tenant_id_flag_key: {
-          tenant_id: tenantId,
-          flag_key: flagKey,
-        },
+        key: flagKey,
       },
       update: {
         is_enabled: isEnabled,
@@ -48,7 +42,8 @@ export class FeatureFlagsService {
       },
       create: {
         tenant_id: tenantId,
-        flag_key: flagKey,
+        key: flagKey,
+        name: flagKey,
         is_enabled: isEnabled,
         description,
       },

@@ -1,55 +1,54 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { compileTokensToCss, DEFAULT_DESIGN_TOKENS, ITokenInput } from '@cms/design-tokens';
-import { IDesignToken } from '@cms/shared-types';
 
 @Injectable()
 export class DesignTokensService {
   constructor(private prisma: PrismaService) {}
 
   async getActiveTokens(tenantId: string): Promise<{ css: string; tokens: ITokenInput[] }> {
-    const record = await this.prisma.designTokenSet.findFirst({
+    const records = await this.prisma.designToken.findMany({
       where: {
         tenant_id: tenantId,
-        is_active: true,
       },
     });
 
-    if (!record) {
+    if (!records || records.length === 0) {
       const css = compileTokensToCss(DEFAULT_DESIGN_TOKENS);
       return { css, tokens: DEFAULT_DESIGN_TOKENS };
     }
 
-    const rawTokens = (record.tokens as any[]) || [];
-    const css = compileTokensToCss(rawTokens as ITokenInput[]);
-    return {
-      css,
-      tokens: rawTokens as ITokenInput[],
-    };
+    const tokens: ITokenInput[] = records.map((r) => ({
+      category: r.category as any,
+      tokenName: r.token_name,
+      tokenValue: r.token_value,
+      darkValue: r.dark_value || undefined,
+      unit: r.unit || undefined,
+    }));
+
+    const css = compileTokensToCss(tokens);
+    return { css, tokens };
   }
 
   async setTokens(tenantId: string, name: string, tokens: ITokenInput[]) {
-    await this.prisma.designTokenSet.updateMany({
+    await this.prisma.designToken.deleteMany({
       where: { tenant_id: tenantId },
-      data: { is_active: false },
     });
 
-    const mapped = tokens.map((t: any) => ({
+    const createData = tokens.map((t) => ({
+      tenant_id: tenantId,
       category: t.category,
-      tokenName: t.tokenName || t.name,
-      tokenValue: t.tokenValue || t.value,
-      darkValue: t.darkValue,
-      unit: t.unit,
+      token_name: t.tokenName,
+      token_value: t.tokenValue,
+      dark_value: t.darkValue || null,
+      unit: t.unit || null,
     }));
 
-    return this.prisma.designTokenSet.create({
-      data: {
-        tenant_id: tenantId,
-        name,
-        tokens: mapped as any,
-        is_active: true,
-      },
+    await this.prisma.designToken.createMany({
+      data: createData,
     });
+
+    return this.getActiveTokens(tenantId);
   }
 
   async getCompiledCss(tenantId: string): Promise<string> {

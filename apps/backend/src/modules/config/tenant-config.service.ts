@@ -5,12 +5,12 @@ import { PrismaService } from '../../database/prisma.service';
 export class TenantConfigService {
   constructor(private prisma: PrismaService) {}
 
-  async getSetting(tenantId: string, namespace: string, key: string): Promise<any> {
-    const setting = await this.prisma.systemSetting.findUnique({
+  async getSetting(tenantId: string, category: string, key: string): Promise<any> {
+    const setting = await this.prisma.tenantSetting.findUnique({
       where: {
-        tenant_id_namespace_key: {
+        tenant_id_category_key: {
           tenant_id: tenantId,
-          namespace,
+          category,
           key,
         },
       },
@@ -20,46 +20,43 @@ export class TenantConfigService {
 
   async setSetting(
     tenantId: string,
-    namespace: string,
+    category: string,
     key: string,
     value: any,
     isPublic = false,
   ) {
-    return this.prisma.systemSetting.upsert({
+    return this.prisma.tenantSetting.upsert({
       where: {
-        tenant_id_namespace_key: {
+        tenant_id_category_key: {
           tenant_id: tenantId,
-          namespace,
+          category,
           key,
         },
       },
       update: {
         value,
-        is_public: isPublic,
       },
       create: {
         tenant_id: tenantId,
-        namespace,
+        category,
         key,
         value,
-        is_public: isPublic,
       },
     });
   }
 
   async getPublicSettings(tenantId: string): Promise<Record<string, Record<string, any>>> {
-    const settings = await this.prisma.systemSetting.findMany({
+    const settings = await this.prisma.tenantSetting.findMany({
       where: {
         tenant_id: tenantId,
-        is_public: true,
       },
     });
 
     return settings.reduce((acc: Record<string, Record<string, any>>, curr: any) => {
-      if (!acc[curr.namespace]) {
-        acc[curr.namespace] = {};
+      if (!acc[curr.category]) {
+        acc[curr.category] = {};
       }
-      acc[curr.namespace][curr.key] = curr.value;
+      acc[curr.category][curr.key] = curr.value;
       return acc;
     }, {});
   }

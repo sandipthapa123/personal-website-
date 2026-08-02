@@ -15,12 +15,17 @@ export class RendererService {
         status: 'PUBLISHED',
       },
       include: {
-        layout: true,
+        layout: {
+          include: {
+            regions: true,
+          },
+        },
         region_blocks: {
           include: {
-            block_instance: {
+            region: true,
+            block: {
               include: {
-                component_definition: true,
+                definition: true,
               },
             },
           },
@@ -28,7 +33,6 @@ export class RendererService {
             order: 'asc',
           },
         },
-        seo_metadata: true,
       },
     });
 
@@ -48,31 +52,31 @@ export class RendererService {
     };
 
     if (page.layout && page.layout.regions) {
-      (page.layout.regions as string[]).forEach((r: string) => {
-        if (!regionMap[r]) {
-          regionMap[r] = [];
+      page.layout.regions.forEach((r) => {
+        if (!regionMap[r.key]) {
+          regionMap[r.key] = [];
         }
       });
     }
 
     page.region_blocks.forEach((rb: any) => {
-      const regionKey = rb.region_key || 'main';
+      const regionKey = rb.region?.key || 'main';
       if (!regionMap[regionKey]) {
         regionMap[regionKey] = [];
       }
 
-      const instance = rb.block_instance;
+      const instance = rb.block;
       if (instance) {
         regionMap[regionKey].push({
           blockId: instance.id,
-          type: instance.component_definition.type,
-          props: (instance.props as Record<string, any>) || {},
-          style: (instance.styles as Record<string, any>) || {},
+          type: instance.definition.type,
+          props: (instance.json_config as Record<string, any>) || {},
+          style: (instance.style_config as Record<string, any>) || {},
         });
       }
     });
 
-    const pageSeo = page.seo_metadata;
+    const pageSeo = (page.seo_metadata as Record<string, any>) || {};
 
     return {
       tenant: {
@@ -89,7 +93,7 @@ export class RendererService {
         status: page.status as ContentStatus,
         publishedAt: page.published_at ? page.published_at.toISOString() : undefined,
       },
-      seo: pageSeo
+      seo: pageSeo.meta_title
         ? {
             metaTitle: pageSeo.meta_title || page.title,
             metaDescription: pageSeo.meta_description || '',

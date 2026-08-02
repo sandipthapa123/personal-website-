@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -33,7 +34,7 @@ async function main() {
     update: {},
     create: {
       action: 'pages:manage',
-      resource: 'pages',
+      module: 'pages',
       description: 'Full page management access',
     },
   });

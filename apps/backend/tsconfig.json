@@ -9,17 +9,10 @@
     "allowSyntheticDefaultImports": true,
     "target": "ES2021",
     "sourceMap": true,
+    "rootDir": "./src",
     "outDir": "./dist",
-    "baseUrl": "../../",
-    "paths": {
-      "@cms/shared-types": ["packages/shared-types/src/index.ts"],
-      "@cms/ui-contracts": ["packages/ui-contracts/src/index.ts"],
-      "@cms/validation": ["packages/validation/src/index.ts"],
-      "@cms/constants": ["packages/constants/src/index.ts"],
-      "@cms/design-tokens": ["packages/design-tokens/src/index.ts"],
-      "@cms/accessibility": ["packages/accessibility/src/index.ts"],
-      "@cms/api-client": ["packages/api-client/src/index.ts"],
-      "@cms/utilities": ["packages/utilities/src/index.ts"]
-    }
-  }
+    "baseUrl": "./",
+    "paths": {}
+  },
+  "include": ["src/**/*"]
 }

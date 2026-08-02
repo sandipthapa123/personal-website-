@@ -26,18 +26,16 @@ export class MediaPipelineService {
       mimeType: file.mimetype,
     });
 
-    const sizeBytes = file.buffer.length;
+    const sizeBytes = BigInt(file.buffer.length);
 
-    return this.prisma.mediaAsset.create({
+    return this.prisma.mediaFile.create({
       data: {
         tenant_id: tenantId,
         filename: file.originalname,
         original_name: file.originalname,
         mime_type: file.mimetype,
         size_bytes: sizeBytes,
-        storage_driver: 'local',
-        path: uploadResult.storageKey,
-        url: uploadResult.publicUrl,
+        storage_key: uploadResult.storageKey,
         alt_text: altText || file.originalname,
         caption,
       },
@@ -49,7 +47,7 @@ export class MediaPipelineService {
   }
 
   async getMediaAsset(tenantId: string, id: string) {
-    return this.prisma.mediaAsset.findFirst({
+    return this.prisma.mediaFile.findFirst({
       where: {
         id,
         tenant_id: tenantId,
@@ -59,8 +57,8 @@ export class MediaPipelineService {
 
   async listMediaAssets(tenantId: string, skip = 0, take = 20) {
     const [total, files] = await Promise.all([
-      this.prisma.mediaAsset.count({ where: { tenant_id: tenantId } }),
-      this.prisma.mediaAsset.findMany({
+      this.prisma.mediaFile.count({ where: { tenant_id: tenantId } }),
+      this.prisma.mediaFile.findMany({
         where: { tenant_id: tenantId },
         skip,
         take,
@@ -75,9 +73,9 @@ export class MediaPipelineService {
       items: files.map((f: any) => ({
         id: f.id,
         filename: f.filename,
-        url: f.url,
+        url: `http://localhost:4000/uploads/${f.storage_key}`,
         mimeType: f.mime_type,
-        sizeBytes: f.size_bytes,
+        sizeBytes: Number(f.size_bytes),
         altText: f.alt_text,
         caption: f.caption,
       })),
