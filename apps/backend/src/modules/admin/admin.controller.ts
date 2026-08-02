@@ -5,6 +5,13 @@ import { Response } from 'express';
 @ApiTags('admin')
 @Controller()
 export class AdminController {
+  @Get('admin')
+  @Get('admin/')
+  @ApiOperation({ summary: 'Auto-redirect http://localhost:4000/admin to /admin/login' })
+  redirectToLogin(@Res() res: Response) {
+    return res.redirect('/admin/login');
+  }
+
   @Get('admin/login')
   @ApiOperation({ summary: 'Backend-Served Admin Login HTML Page' })
   getBackendAdminLoginPage(@Res() res: Response) {
@@ -83,7 +90,7 @@ export class AdminController {
           status.style.display = 'block';
           status.innerText = '✓ Authenticated! Loading Backend Dashboard...';
           setTimeout(() => {
-            window.location.href = '/admin';
+            window.location.href = '/admin/dashboard';
           }, 800);
         } else {
           throw new Error(data.message || 'Login failed');
@@ -102,8 +109,6 @@ export class AdminController {
     return res.status(200).send(html);
   }
 
-  @Get('admin')
-  @Get('admin/')
   @Get('admin/dashboard')
   @ApiOperation({ summary: 'Backend-Served Admin Dashboard HTML Page' })
   getBackendAdminDashboardPage(@Res() res: Response) {
@@ -153,7 +158,7 @@ export class AdminController {
   <main>
     <div class="banner">
       <h2>Backend Admin Single Source of Truth</h2>
-      <p>Direct HTTP access to http://localhost:4000/admin serving backend metrics, content schemas, navigation trees, and diagnostics without redirection.</p>
+      <p>All administrative controls, user authentication, navigation menus, page region blocks, feature flags, and design token compilers exist exclusively in the NestJS Backend. Frontend is strictly a presentation layer.</p>
     </div>
 
     <div class="grid">
@@ -184,7 +189,7 @@ export class AdminController {
       <div class="links-grid">
         <a class="link-btn" href="/api/docs" target="_blank">📚 Swagger API Specification</a>
         <a class="link-btn" href="/api/v1/navigation/main" target="_blank">🌳 Main Navigation Tree JSON</a>
-        <a class="link-btn" href="/api/v1/renderer/page?slug=/" target="_blank">📐 12-Section Homepage Schema</a>
+        <a class="link-btn" href="/api/v1/renderer/page?slug=/" target="_blank">📐 14-Section Homepage Schema</a>
         <a class="link-btn" href="/api/v1/search?query=research" target="_blank">🔍 Universal Search Engine API</a>
         <a class="link-btn" href="/api/v1/tokens/compiled-css" target="_blank">🎨 Design Tokens CSS Engine</a>
         <a class="link-btn" href="/api/v1/health" target="_blank">🩺 Diagnostics & System Health</a>
