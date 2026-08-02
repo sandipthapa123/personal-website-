@@ -1,13 +1,17 @@
-import { Controller, Get, Post, Body, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Res, HttpStatus, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Response } from 'express';
 import { PrismaService } from '../../database/prisma.service';
+import { AdminService, IDashboardWidget } from './admin.service';
 import { formatDualCalendarDate } from '@cms/utilities';
 
 @ApiTags('Admin Console')
 @Controller()
 export class AdminController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private adminService: AdminService,
+  ) {}
 
   @Get('admin')
   @Get('admin/')
@@ -768,5 +772,75 @@ export class AdminController {
 </body>
 </html>`;
     return res.status(HttpStatus.OK).send(html);
+  }
+
+  // ─── ADMIN ENTERPRISE APIs ───────────────────────────────────────────────
+
+  @Get('admin/widgets')
+  @ApiOperation({ summary: 'Get user-specific dashboard widget layout' })
+  async getWidgets() {
+    return {
+      success: true,
+      data: this.adminService.getUserWidgets(),
+    };
+  }
+
+  @Post('admin/widgets/layout')
+  @ApiOperation({ summary: 'Save drag & drop dashboard widget layout' })
+  async saveWidgetLayout(@Body() body: { widgets: IDashboardWidget[] }) {
+    const updated = this.adminService.saveUserWidgets('default-admin', body.widgets || []);
+    return {
+      success: true,
+      data: updated,
+    };
+  }
+
+  @Get('admin/search')
+  @ApiOperation({ summary: 'Enterprise Admin Search across 9 system domains' })
+  async adminSearch(@Query('q') query: string) {
+    const results = await this.adminService.globalAdminSearch(query || '');
+    return {
+      success: true,
+      data: results,
+    };
+  }
+
+  @Post('admin/bulk-operations')
+  @ApiOperation({ summary: 'Execute bulk publish, delete, archive, or export' })
+  async bulkOperation(@Body() body: { operation: 'publish' | 'delete' | 'archive' | 'export'; targetIds: string[]; type?: string }) {
+    const result = await this.adminService.executeBulkOperation(body.operation, body.targetIds || [], body.type);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Post('admin/export')
+  @ApiOperation({ summary: 'Export CMS content in JSON, CSV, XML, or Markdown' })
+  async exportData(@Body() body: { format: 'json' | 'csv' | 'xml' | 'markdown'; contentTypes?: string[] }) {
+    const result = await this.adminService.exportContent(body.format || 'json', body.contentTypes || ['posts', 'pages']);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @Get('admin/audit-trail')
+  @ApiOperation({ summary: 'Get System Audit Trail logs' })
+  async getAuditTrail() {
+    return {
+      success: true,
+      data: this.adminService.getAuditTrail(),
+    };
+  }
+
+  @Post('admin/system/cache/flush')
+  @ApiOperation({ summary: 'Flush platform Redis and in-memory caches' })
+  async flushCache() {
+    const res = this.adminService.flushSystemCache();
+    return {
+      success: true,
+      data: res,
+    };
   }
 }
