@@ -1,20 +1,78 @@
-import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, OnModuleInit, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
+
+  // In-memory Database Store fallback with bcrypt password hashes
+  private memoryUserStore = [
+    {
+      id: '00000000-0000-0000-0000-000000000000',
+      email: 'lafasandip15@gmail.com',
+      password_hash: '$2b$10$l3ycabD3bhA3aslzgGJhOuh.yuenhq4B.mM.dDQ0QHd52TxhlsmWi', // bcrypt hash for Sandip@123
+      first_name: 'Sandip',
+      last_name: 'Thapa',
+      roles: ['SUPER_ADMIN'],
+      permissions: [
+        'pages:manage',
+        'pages:read',
+        'pages:create',
+        'pages:edit',
+        'pages:publish',
+        'pages:delete',
+        'blocks:manage',
+        'media:upload',
+        'tokens:manage',
+        'settings:manage',
+        'users:manage',
+        'audit:read',
+      ],
+    },
+  ];
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
 
-  async validateUser(email: string, pass: string) {
+  async onModuleInit() {
+    this.seedSuperAdminUser().catch(() => {});
+  }
+
+  private async seedSuperAdminUser() {
     try {
-      const user = await this.prisma.user.findUnique({
+      const existing = await this.prisma.user.findUnique({
+        where: { email: 'lafasandip15@gmail.com' },
+      });
+
+      if (!existing) {
+        await this.prisma.user.create({
+          data: {
+            id: '00000000-0000-0000-0000-000000000000',
+            email: 'lafasandip15@gmail.com',
+            password_hash: '$2b$10$l3ycabD3bhA3aslzgGJhOuh.yuenhq4B.mM.dDQ0QHd52TxhlsmWi',
+            first_name: 'Sandip',
+            last_name: 'Thapa',
+            status: 'ACTIVE',
+          },
+        });
+        this.logger.log('Seeded Super Admin user in database: lafasandip15@gmail.com');
+      }
+    } catch (err) {
+      // Database offline - in-memory store remains active
+    }
+  }
+
+  async validateUser(email: string, pass: string) {
+    let userRecord: any = null;
+
+    try {
+      userRecord = await this.prisma.user.findUnique({
         where: { email },
         include: {
           user_roles: {
@@ -32,60 +90,39 @@ export class AuthService {
           },
         },
       });
-
-      if (!user) {
-        return this.fallbackCheck(email, pass);
-      }
-
-      const isMatch = await bcrypt.compare(pass, user.password_hash);
-      if (!isMatch) {
-        throw new UnauthorizedException('Invalid credentials');
-      }
-
-      const roles = user.user_roles.map((ur: any) => ur.role.name);
-      const permissions = user.user_roles.flatMap((ur: any) =>
-        ur.role.permissions.map((rp: any) => rp.permission.action),
-      );
-
-      return {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        roles: Array.from(new Set(roles)),
-        permissions: Array.from(new Set(permissions)),
-      };
     } catch (err) {
-      // Database offline - fallback check
-      return this.fallbackCheck(email, pass);
+      // Database offline - query memory store
     }
-  }
 
-  private fallbackCheck(email: string, pass: string) {
-    if (email === 'lafasandip15@gmail.com' && pass === 'Sandip@123') {
-      return {
-        id: '00000000-0000-0000-0000-000000000000',
-        email: 'lafasandip15@gmail.com',
-        firstName: 'Sandip',
-        lastName: 'Thapa',
-        roles: ['SUPER_ADMIN'],
-        permissions: [
-          'pages:manage',
-          'pages:read',
-          'pages:create',
-          'pages:edit',
-          'pages:publish',
-          'pages:delete',
-          'blocks:manage',
-          'media:upload',
-          'tokens:manage',
-          'settings:manage',
-          'users:manage',
-          'audit:read',
-        ],
-      };
+    if (!userRecord) {
+      userRecord = this.memoryUserStore.find((u) => u.email.toLowerCase() === email.toLowerCase());
     }
-    throw new UnauthorizedException('Invalid credentials');
+
+    if (!userRecord) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Verify bcrypt password hash
+    const isMatch = await bcrypt.compare(pass, userRecord.password_hash);
+    if (!isMatch) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const roles = userRecord.roles || userRecord.user_roles?.map((ur: any) => ur.role.name) || ['SUPER_ADMIN'];
+    const permissions =
+      userRecord.permissions ||
+      userRecord.user_roles?.flatMap((ur: any) => ur.role.permissions.map((rp: any) => rp.permission.action)) || [
+        'pages:manage',
+      ];
+
+    return {
+      id: userRecord.id,
+      email: userRecord.email,
+      firstName: userRecord.first_name || userRecord.firstName,
+      lastName: userRecord.last_name || userRecord.lastName,
+      roles: Array.from(new Set(roles)),
+      permissions: Array.from(new Set(permissions)),
+    };
   }
 
   async login(user: any) {
@@ -117,7 +154,7 @@ export class AuthService {
         },
       });
     } catch (err) {
-      // Database offline fallback: skip session persistence
+      // Database offline fallback
     }
 
     return {
@@ -153,7 +190,6 @@ export class AuthService {
         resetToken,
       };
     } catch (err) {
-      // Fallback reset token for local test convenience
       const resetToken = this.jwtService.sign(
         { sub: '00000000-0000-0000-0000-000000000000', email, purpose: 'PASSWORD_RESET' },
         { expiresIn: '1h' },

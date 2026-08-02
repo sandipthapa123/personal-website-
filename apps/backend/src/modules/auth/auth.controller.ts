@@ -11,11 +11,11 @@ export class AuthController {
   @Get('login')
   @ApiOperation({ summary: 'Login endpoint status and navigation guide' })
   loginInfo(@Res() res: Response) {
-    return res.status(200).json({
+    const payload = {
       status: 'active',
       message: 'Authentication Endpoint Operational',
       instruction: 'To log in via browser UI, visit the Admin Portal URL below. To log in via API, submit an HTTP POST request.',
-      webAdminPortal: 'http://localhost:3000/admin/login',
+      webAdminPortal: 'http://localhost:4000/admin/login',
       swaggerDocs: 'http://localhost:4000/api/docs',
       httpMethodRequired: 'POST',
       credentials: {
@@ -23,7 +23,10 @@ export class AuthController {
         password: 'Sandip@123',
       },
       curlExample: 'curl -X POST http://localhost:4000/api/v1/auth/login -H "Content-Type: application/json" -d "{\\"email\\":\\"lafasandip15@gmail.com\\",\\"password\\":\\"Sandip@123\\"}"',
-    });
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    return res.status(200).send(JSON.stringify(payload, null, 2));
   }
 
   @Post('login')
