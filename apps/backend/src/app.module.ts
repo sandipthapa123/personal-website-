@@ -23,6 +23,7 @@ import { AccessibilityBackendModule } from './modules/accessibility/accessibilit
 import { PluginModule } from './modules/plugins/plugin.module';
 import { AiModule } from './modules/ai/ai.module';
 import { HealthModule } from './modules/health/health.module';
+import { EditorModule } from './modules/editor/editor.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { HealthModule } from './modules/health/health.module';
     PluginModule,
     AiModule,
     HealthModule,
+    EditorModule,
   ],
 })
 export class AppModule {}

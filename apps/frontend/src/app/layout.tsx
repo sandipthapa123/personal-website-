@@ -1,10 +1,29 @@
 import type { Metadata } from 'next';
+import { Noto_Sans, Noto_Sans_Devanagari, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { ACCESSIBILITY_CONSTANTS } from '@cms/accessibility';
 import { AccessibilityToolbar } from '../components/accessibility/AccessibilityToolbar';
 import { CommandPalette } from '../components/ui/CommandPalette';
 import { HeaderNav } from '../components/layout/HeaderNav';
 import { FooterNav } from '../components/layout/FooterNav';
+
+const notoSans = Noto_Sans({
+  subsets: ['latin'],
+  variable: '--font-noto-sans',
+  display: 'swap',
+});
+
+const notoSansDevanagari = Noto_Sans_Devanagari({
+  subsets: ['devanagari'],
+  variable: '--font-noto-devanagari',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Sandip Thapa | Academic Research, Law & Accessibility Platform',
@@ -17,8 +36,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
+    <html lang="en" className={`${notoSans.variable} ${notoSansDevanagari.variable} ${jetbrainsMono.variable}`}>
+      <body className="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
         <div>
           <a
             id={ACCESSIBILITY_CONSTANTS.SKIP_LINK_ID}
