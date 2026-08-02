@@ -17,8 +17,8 @@ export class AdminController {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: #090d16; color: #f1f5f9; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; width: 100%; max-width: 420px; padding: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-    .logo { width: 48px; h: 48px; background: #0284c7; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: #fff; margin: 0 auto 16px; }
+    .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; width: 100%; max-width: 440px; padding: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+    .logo { width: 48px; height: 48px; background: #0284c7; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; color: #fff; margin: 0 auto 16px; }
     h1 { text-align: center; font-size: 22px; font-weight: 800; color: #fff; }
     p.sub { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 4px; margin-bottom: 24px; }
     .group { margin-bottom: 16px; }
@@ -37,7 +37,7 @@ export class AdminController {
   <div class="card">
     <div class="logo">ST</div>
     <h1>Backend Admin Portal</h1>
-    <p class="sub">Sandip Thapa CMS Engine API (Port 4000)</p>
+    <p class="sub">100% NestJS Backend Control Engine (Port 4000)</p>
     
     <div id="status" class="status"></div>
 
@@ -54,7 +54,7 @@ export class AdminController {
     </form>
 
     <div class="footer">
-      Direct Backend-Driven Control Console
+      Single Source of Truth Admin Console
     </div>
   </div>
 
@@ -84,7 +84,7 @@ export class AdminController {
           status.innerText = '✓ Authenticated! Loading Backend Dashboard...';
           setTimeout(() => {
             window.location.href = '/admin/dashboard';
-          }, 1000);
+          }, 800);
         } else {
           throw new Error(data.message || 'Login failed');
         }
@@ -111,7 +111,7 @@ export class AdminController {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Backend Admin Dashboard | Sandip Thapa CMS Engine</title>
+  <title>Backend Admin Console | Sandip Thapa CMS Engine</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: #020617; color: #f8fafc; min-height: 100vh; }
@@ -140,8 +140,8 @@ export class AdminController {
     <div class="brand">
       <div class="logo">ST</div>
       <div>
-        <div class="title">Backend-Driven CMS Console</div>
-        <div class="sub">NestJS Engine Architecture (Port 4000)</div>
+        <div class="title">Backend Admin Control Console</div>
+        <div class="sub">100% NestJS Backend Engine (Port 4000)</div>
       </div>
     </div>
     <div class="user-pill">
@@ -151,8 +151,8 @@ export class AdminController {
 
   <main>
     <div class="banner">
-      <h2>Backend Admin Control Engine</h2>
-      <p>This admin portal is served directly from the NestJS Backend Engine API. All configuration, layout definitions, design tokens, security policies, and workflow states originate from the backend single source of truth.</p>
+      <h2>Backend Admin Single Source of Truth</h2>
+      <p>All administrative controls, user authentication, navigation menus, page region blocks, feature flags, and design token compilers exist exclusively in the NestJS Backend. Frontend is strictly a presentation layer.</p>
     </div>
 
     <div class="grid">
@@ -167,24 +167,26 @@ export class AdminController {
         <div class="desc">Interactive REST endpoint testing</div>
       </div>
       <div class="card">
-        <label>Frontend Client App</label>
+        <label>Presentation Layer (Frontend)</label>
         <div class="val"><a href="http://localhost:3000" target="_blank" style="color: #c084fc; text-decoration: none;">localhost:3000 ↗</a></div>
         <div class="desc">Next.js Renderer Application</div>
       </div>
       <div class="card">
-        <label>System Health</label>
+        <label>System Health Engine</label>
         <div class="val"><a href="/api/v1/health" target="_blank" style="color: #34d399; text-decoration: none;">/api/v1/health ↗</a></div>
-        <div class="desc">Operational Metrics Engine</div>
+        <div class="desc">Operational Diagnostics API</div>
       </div>
     </div>
 
     <div class="card">
-      <label>Backend Control Endpoints</label>
+      <label>Backend Control REST APIs</label>
       <div class="links-grid">
         <a class="link-btn" href="/api/docs" target="_blank">📚 Swagger API Specification</a>
-        <a class="link-btn" href="/api/v1/health" target="_blank">🩺 System Diagnostics API</a>
-        <a class="link-btn" href="/api/v1/tokens/compiled-css" target="_blank">🎨 Compiled Design Tokens CSS</a>
-        <a class="link-btn" href="http://localhost:3000/admin/dashboard" target="_blank">💻 Frontend Next.js Admin UI</a>
+        <a class="link-btn" href="/api/v1/navigation/main" target="_blank">🌳 Main Navigation Tree JSON</a>
+        <a class="link-btn" href="/api/v1/renderer/page?slug=/" target="_blank">📐 12-Section Homepage Schema</a>
+        <a class="link-btn" href="/api/v1/search?query=research" target="_blank">🔍 Universal Search Engine API</a>
+        <a class="link-btn" href="/api/v1/tokens/compiled-css" target="_blank">🎨 Design Tokens CSS Engine</a>
+        <a class="link-btn" href="/api/v1/health" target="_blank">🩺 Diagnostics & System Health</a>
       </div>
     </div>
   </main>
