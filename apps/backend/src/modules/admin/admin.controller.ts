@@ -4,7 +4,7 @@ import { Response } from 'express';
 import { PrismaService } from '../../database/prisma.service';
 import { formatDualCalendarDate } from '@cms/utilities';
 
-@ApiTags('admin')
+@ApiTags('Admin Console')
 @Controller()
 export class AdminController {
   constructor(private prisma: PrismaService) {}
@@ -111,6 +111,33 @@ export class AdminController {
 </body>
 </html>`;
     return res.status(200).send(html);
+  }
+
+  @Get('admin/dashboard-metrics')
+  @ApiOperation({ summary: 'Backend API: Get Dashboard Metrics & System Diagnostics' })
+  async getDashboardMetricsData(@Res() res: Response) {
+    const nowDual = formatDualCalendarDate(new Date());
+    return res.status(200).json({
+      success: true,
+      data: {
+        system: {
+          status: 'healthy',
+          uptimeSeconds: process.uptime(),
+          nodeVersion: process.version,
+          timeBs: nowDual.bsFormatted,
+          timeAd: nowDual.adFormatted,
+          timeNpt: nowDual.nptTimeFormatted,
+        },
+        metrics: {
+          totalArticles: 18,
+          publishedResearch: 9,
+          academicPublications: 14,
+          publishedPoems: 12,
+          activeUsers: 1,
+          mediaAssets: 25,
+        },
+      },
+    });
   }
 
   @Get('admin/dashboard')
@@ -366,7 +393,7 @@ export class AdminController {
     return res.status(200).send(html);
   }
 
-  @Post('api/v1/admin/posts')
+  @Post('admin/posts')
   @ApiOperation({ summary: 'Backend API: Create Blog Post / Article' })
   async createPost(@Body() body: any, @Res() res: Response) {
     try {
@@ -388,7 +415,7 @@ export class AdminController {
     }
   }
 
-  @Post('api/v1/admin/research')
+  @Post('admin/research')
   @ApiOperation({ summary: 'Backend API: Create Research Project' })
   async createResearch(@Body() body: any, @Res() res: Response) {
     return res.status(HttpStatus.CREATED).json({
@@ -397,7 +424,7 @@ export class AdminController {
     });
   }
 
-  @Post('api/v1/admin/publications')
+  @Post('admin/publications')
   @ApiOperation({ summary: 'Backend API: Create Publication' })
   async createPublication(@Body() body: any, @Res() res: Response) {
     return res.status(HttpStatus.CREATED).json({
@@ -406,7 +433,7 @@ export class AdminController {
     });
   }
 
-  @Post('api/v1/admin/poems')
+  @Post('admin/poems')
   @ApiOperation({ summary: 'Backend API: Create Poem' })
   async createPoem(@Body() body: any, @Res() res: Response) {
     return res.status(HttpStatus.CREATED).json({
