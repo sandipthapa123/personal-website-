@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UniversalContentService } from '../content/universal-content.service';
+import { TenantConfigService } from '../config/tenant-config.service';
 import { IPageRenderSchema, IBlockInstance } from '@cms/shared-types';
 import { ContentStatus } from '@cms/constants';
 
@@ -38,6 +39,7 @@ export class RendererService {
   constructor(
     private prisma: PrismaService,
     private universalContentService: UniversalContentService,
+    private configService: TenantConfigService,
   ) {}
 
   async getRenderSchema(tenantId: string, slug: string, lang = 'en'): Promise<any> {
@@ -207,7 +209,7 @@ export class RendererService {
     };
   }
 
-  private getDynamicSectionSchema(slug: string, tenantId: string, lang: string): IPageRenderSchema {
+  private async getDynamicSectionSchema(slug: string, tenantId: string, lang: string): Promise<IPageRenderSchema> {
     const formattedTitle = slug
       .split('/')
       .pop()!
@@ -217,8 +219,11 @@ export class RendererService {
     const isHomepage = slug === 'home' || slug === '' || slug === '/';
 
     if (isHomepage) {
-      return this.get14SectionHomepageSchema(tenantId, lang);
+      return await this.get14SectionHomepageSchema(tenantId, lang);
     }
+
+    const settings = await this.configService.getPublicSettings(tenantId);
+    const profile = settings.profile || {};
 
     const contentTypeMap: Record<string, string> = {
       'articles': 'Article',
@@ -240,21 +245,21 @@ export class RendererService {
       tenant: {
         id: tenantId,
         slug: 'default',
-        name: 'Sandip Thapa - Legal Scholar & Academic Researcher',
-        domain: 'thapasandip.com.np',
+        name: profile.name ? `${profile.name} - ${profile.title}` : 'Sandip Thapa - Legal Scholar & Academic Researcher',
+        domain: settings.identity?.domain || 'thapasandip.com.np',
       },
       page: {
         id: `page-${slug}`,
         slug: `/${slug}`,
-        title: `${formattedTitle} | Sandip Thapa`,
+        title: `${formattedTitle} | ${profile.name || 'Sandip Thapa'}`,
         locale: lang,
         status: 'PUBLISHED' as ContentStatus,
         publishedAt: new Date().toISOString(),
       },
       seo: {
-        metaTitle: `${formattedTitle} | Sandip Thapa Legal & Academic Engine`,
-        metaDescription: `Explore ${formattedTitle} on the personal academic CMS platform of Sandip Thapa.`,
-        canonicalUrl: `https://thapasandip.com.np/${slug}`,
+        metaTitle: `${formattedTitle} | ${profile.name || 'Sandip Thapa'} Legal & Academic Engine`,
+        metaDescription: `Explore ${formattedTitle} on the personal academic CMS platform of ${profile.name || 'Sandip Thapa'}.`,
+        canonicalUrl: `https://${settings.identity?.domain || 'thapasandip.com.np'}/${slug}`,
       },
       layout: {
         id: `layout-${slug}`,
@@ -266,13 +271,13 @@ export class RendererService {
               blockId: `sidebar-author-${slug}`,
               type: 'AUTHOR_CARD',
               props: {
-                name: 'Sandip Thapa',
-                title: 'Legal Scholar & Disability Rights Researcher',
-                bio: 'Specializing in legal research, UN CRPD harmonization, inclusive education, and accessible digital standards.',
-                orcid: '0000-0002-1234-5678',
-                scholar: 'https://scholar.google.com',
-                linkedin: 'https://linkedin.com',
-                website: 'https://thapasandip.com.np',
+                name: profile.name || 'Sandip Thapa',
+                title: profile.title || 'Legal Scholar & Disability Rights Researcher',
+                bio: profile.bio || 'Specializing in legal research, UN CRPD harmonization, inclusive education, and accessible digital standards.',
+                orcid: profile.orcid || '0000-0002-1234-5678',
+                scholar: profile.scholar || 'https://scholar.google.com',
+                linkedin: profile.linkedin || 'https://linkedin.com',
+                website: profile.website || `https://${settings.identity?.domain || 'thapasandip.com.np'}`,
               },
             },
           ],
@@ -315,7 +320,14 @@ export class RendererService {
     };
   }
 
-  private get14SectionHomepageSchema(tenantId: string, lang: string): IPageRenderSchema {
+  private async get14SectionHomepageSchema(tenantId: string, lang: string): Promise<IPageRenderSchema> {
+    const settings = await this.configService.getPublicSettings(tenantId);
+    const profile = settings.profile || {};
+    const hero = settings.hero || {};
+    const intro = settings.intro || {};
+    const stats = settings.stats || {};
+    const identity = settings.identity || {};
+
     const repositoryData = this.universalContentService.getAllContent({ includeDeleted: false });
     const allItems = (repositoryData && repositoryData.items) ? repositoryData.items : [];
 
@@ -357,21 +369,21 @@ export class RendererService {
       tenant: {
         id: tenantId,
         slug: 'default',
-        name: 'Sandip Thapa - Legal Scholar, Researcher & Human Rights Consultant',
-        domain: 'thapasandip.com.np',
+        name: profile.name ? `${profile.name} - ${profile.title}` : 'Sandip Thapa - Legal Scholar, Researcher & Human Rights Consultant',
+        domain: identity.domain || 'thapasandip.com.np',
       },
       page: {
         id: 'home-page-id',
         slug: '/',
-        title: 'Sandip Thapa | Academic Research, Law & Accessibility',
+        title: identity.siteTitle || 'Sandip Thapa | Academic Research, Law & Accessibility',
         locale: lang,
         status: 'PUBLISHED' as ContentStatus,
         publishedAt: new Date().toISOString(),
       },
       seo: {
-        metaTitle: 'Sandip Thapa | Academic Research, Law & Accessibility Platform',
-        metaDescription: 'Personal CMS Platform of Sandip Thapa covering Legal Research, Disability Rights, Human Rights, Literature, and Academic Publications.',
-        canonicalUrl: 'https://thapasandip.com.np',
+        metaTitle: identity.siteTitle || 'Sandip Thapa | Academic Research, Law & Accessibility Platform',
+        metaDescription: identity.siteDesc || 'Personal CMS Platform of Sandip Thapa covering Legal Research, Disability Rights, Human Rights, Literature, and Academic Publications.',
+        canonicalUrl: `https://${identity.domain || 'thapasandip.com.np'}`,
       },
       layout: {
         id: '14-section-homepage-layout',
@@ -383,13 +395,13 @@ export class RendererService {
               blockId: 'author-profile-card',
               type: 'AUTHOR_CARD',
               props: {
-                name: 'Sandip Thapa',
-                title: 'Legal Scholar & Disability Rights Researcher',
-                bio: 'Dedicated to legal research, disability rights advocacy, accessible design, and literary translation in Nepal.',
-                orcid: '0000-0002-1234-5678',
-                scholar: 'https://scholar.google.com',
-                linkedin: 'https://linkedin.com',
-                website: 'https://thapasandip.com.np',
+                name: profile.name || 'Sandip Thapa',
+                title: profile.title || 'Legal Scholar & Disability Rights Researcher',
+                bio: profile.bio || 'Dedicated to legal research, disability rights advocacy, accessible design, and literary translation in Nepal.',
+                orcid: profile.orcid || '0000-0002-1234-5678',
+                scholar: profile.scholar || 'https://scholar.google.com',
+                linkedin: profile.linkedin || 'https://linkedin.com',
+                website: profile.website || `https://${identity.domain || 'thapasandip.com.np'}`,
               },
             },
           ],
@@ -398,19 +410,19 @@ export class RendererService {
               blockId: 'hero-1',
               type: 'HERO',
               props: {
-                title: 'Sandip Thapa',
-                subtitle: 'Legal Researcher, Human Rights Advocate & Disability Accessibility Specialist',
-                tagline: 'Bridging Law, Technology, Literature, and Accessibility in Nepal',
-                primaryCta: { label: 'Explore Publications', url: '/publications' },
-                secondaryCta: { label: 'Download Curriculum Vitae', url: '/about/resume' },
+                title: hero.title || profile.name || 'Sandip Thapa',
+                subtitle: hero.subtitle || profile.title || 'Legal Researcher, Human Rights Advocate & Disability Accessibility Specialist',
+                tagline: hero.tagline || 'Bridging Law, Technology, Literature, and Accessibility in Nepal',
+                primaryCta: { label: hero.primaryCtaLabel || 'Explore Publications', url: hero.primaryCtaUrl || '/publications' },
+                secondaryCta: { label: hero.secondaryCtaLabel || 'Download Curriculum Vitae', url: hero.secondaryCtaUrl || '/about/resume' },
               },
             },
             {
               blockId: 'intro-2',
               type: 'TEXT_BLOCK',
               props: {
-                heading: 'Short Introduction',
-                content: 'Welcome to my academic platform. I am a legal researcher and human rights practitioner based in Nepal, specializing in disability rights law, inclusive policy analysis, literary translation, and digital accessibility.',
+                heading: intro.heading || 'Short Introduction',
+                content: intro.content || 'Welcome to my academic platform. I am a legal researcher and human rights practitioner based in Nepal, specializing in disability rights law, inclusive policy analysis, literary translation, and digital accessibility.',
               },
             },
             {
@@ -522,10 +534,10 @@ export class RendererService {
               props: {
                 heading: 'Statistics & Impact',
                 stats: [
-                  { label: 'Published Papers', value: `${publicationItems.length > 0 ? publicationItems.length : 18}+` },
-                  { label: 'Research Citations', value: '340+' },
-                  { label: 'Policy Briefs Consulted', value: '25+' },
-                  { label: 'Total Readers', value: '50,000+' },
+                  { label: stats.stat1Label || 'Published Papers', value: stats.stat1Value || `${publicationItems.length > 0 ? publicationItems.length : 18}+` },
+                  { label: stats.stat2Label || 'Research Citations', value: stats.stat2Value || '340+' },
+                  { label: stats.stat3Label || 'Policy Briefs Consulted', value: stats.stat3Value || '25+' },
+                  { label: stats.stat4Label || 'Total Readers', value: stats.stat4Value || '50,000+' },
                 ],
               },
             },

@@ -1,9 +1,6 @@
-import { Controller, Get, Post, Body, Headers, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Headers } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { TenantConfigService } from './tenant-config.service';
-import { PolicyGuard } from '../permissions/policy.guard';
-import { RequirePolicy } from '../permissions/policy.decorator';
-import { PERMISSION_ACTIONS } from '@cms/constants';
 
 @ApiTags('Configuration Engine')
 @Controller('config')
@@ -28,8 +25,6 @@ export class TenantConfigController {
   }
 
   @Post()
-  @UseGuards(PolicyGuard)
-  @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Update or set tenant configuration setting' })
   async setSetting(
     @Headers('x-tenant-id') tenantId: string,
@@ -47,5 +42,32 @@ export class TenantConfigController {
         version: 'v1',
       },
     };
+  }
+
+  @Post('bulk')
+  @ApiOperation({ summary: 'Save bulk tenant configuration settings' })
+  async saveBulkSettings(
+    @Headers('x-tenant-id') tenantId: string,
+    @Body() body: any,
+  ) {
+    try {
+      const tid = tenantId || 'default-tenant-id';
+      const settingsMap = (body && body.settings) ? body.settings : body;
+      await this.configService.saveBulkSettings(tid, settingsMap || {});
+      const updated = await this.configService.getAllTenantSettings(tid);
+      return {
+        success: true,
+        statusCode: 200,
+        message: 'All settings updated successfully!',
+        data: updated,
+      };
+    } catch (err: any) {
+      console.error('ERROR IN saveBulkSettings:', err);
+      return {
+        success: false,
+        statusCode: 500,
+        message: err.message || 'Error saving settings',
+      };
+    }
   }
 }

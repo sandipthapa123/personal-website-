@@ -2,6 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UniversalContentService } from '../content/universal-content.service';
 
+import { TenantConfigService } from '../config/tenant-config.service';
+
 export type MenuLocation =
   | 'PRIMARY_HEADER'
   | 'SECONDARY_HEADER'
@@ -66,7 +68,8 @@ export class NavigationService {
 
   constructor(
     private prisma: PrismaService,
-    private universalContentService: UniversalContentService
+    private universalContentService: UniversalContentService,
+    private configService: TenantConfigService,
   ) {
     this.seedDefaultMenus();
   }
@@ -395,8 +398,16 @@ export class NavigationService {
 
   async getFooterNavigationLegacy() {
     const footer = await this.getMenuByLocation('FOOTER');
+    const tid = 'default-tenant-id';
+    const aboutText = await this.configService.getSetting(tid, 'footer', 'aboutText');
+    const copyright = await this.configService.getSetting(tid, 'footer', 'copyright');
+    const orcid = await this.configService.getSetting(tid, 'profile', 'orcid');
+    const scholar = await this.configService.getSetting(tid, 'profile', 'scholar');
+    const linkedin = await this.configService.getSetting(tid, 'profile', 'linkedin');
+    const github = await this.configService.getSetting(tid, 'profile', 'github');
+
     return {
-      aboutText: 'Sandip Thapa — Legal Scholar, Human Rights Advocate, and Disability Accessibility Specialist based in Nepal.',
+      aboutText: aboutText || 'Sandip Thapa — Legal Scholar, Human Rights Advocate, and Disability Accessibility Specialist based in Nepal.',
       columns: [
         {
           title: 'Quick Links',
@@ -404,11 +415,12 @@ export class NavigationService {
         },
       ],
       socialMedia: [
-        { platform: 'ORCID', url: 'https://orcid.org/0000-0002-1234-5678' },
-        { platform: 'Google Scholar', url: 'https://scholar.google.com' },
-        { platform: 'LinkedIn', url: 'https://linkedin.com' },
+        { platform: 'ORCID', url: orcid ? (orcid.startsWith('http') ? orcid : `https://orcid.org/${orcid}`) : 'https://orcid.org' },
+        { platform: 'Google Scholar', url: scholar || 'https://scholar.google.com' },
+        { platform: 'LinkedIn', url: linkedin || 'https://linkedin.com' },
+        { platform: 'GitHub', url: github || 'https://github.com/sandipthapa123' },
       ],
-      copyright: '© 2083 BS / 2026 AD Sandip Thapa. All rights reserved.',
+      copyright: copyright || '© 2083 BS / 2026 AD Sandip Thapa. All rights reserved.',
     };
   }
 
