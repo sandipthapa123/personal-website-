@@ -12,6 +12,7 @@
     "build": "npm run build:packages && npm --workspace=apps/backend run build && npm --workspace=apps/frontend run build",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "dev": "npm run dev:backend",
     "dev:backend": "npm run build:packages && npm --workspace=apps/backend run start:dev",
     "dev:frontend": "npm --workspace=apps/frontend run dev",
     "db:migrate": "npm --workspace=apps/backend run db:migrate",
