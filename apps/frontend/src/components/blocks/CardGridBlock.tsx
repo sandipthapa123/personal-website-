@@ -57,7 +57,17 @@ export const CardGridBlock: React.FC<CardGridProps> = ({ heading, description, i
             )}
 
             <h3 className="font-bold text-slate-100 group-hover:text-sky-300 transition-colors text-sm leading-snug">
-              {item.title || item.name}
+              {item.url ? (
+                <a 
+                  href={item.url} 
+                  aria-label={`Read more about ${item.title || item.name}`}
+                  className="focus:outline-none focus:ring-2 focus:ring-sky-500 rounded"
+                >
+                  {item.title || item.name}
+                </a>
+              ) : (
+                item.title || item.name
+              )}
             </h3>
 
             {(item.summary || item.description) && (
@@ -117,14 +127,6 @@ export const CardGridBlock: React.FC<CardGridProps> = ({ heading, description, i
               )}
             </div>
 
-            {item.url && (
-              <a
-                href={item.url}
-                className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-400 hover:text-sky-300 transition-colors mt-1"
-              >
-                Read more →
-              </a>
-            )}
           </article>
         ))}
       </div>

@@ -52,7 +52,13 @@ export const ArticleListBlock: React.FC<ArticleListProps> = ({ heading, descript
 
           <h3 className="text-lg font-bold text-white group-hover:text-sky-300 transition-colors leading-snug">
             {article.url || article.slug ? (
-              <a href={article.url || `/${article.slug}`}>{article.title}</a>
+              <a 
+                href={article.url || `/${article.slug}`}
+                aria-label={`Read full article: ${article.title}`}
+                className="focus:outline-none focus:ring-2 focus:ring-sky-500 rounded"
+              >
+                {article.title}
+              </a>
             ) : (
               article.title
             )}
@@ -77,14 +83,6 @@ export const ArticleListBlock: React.FC<ArticleListProps> = ({ heading, descript
             )}
           </div>
 
-          {(article.url || article.slug) && (
-            <a
-              href={article.url || `/${article.slug}`}
-              className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-400 hover:text-sky-300 transition-colors"
-            >
-              Read full article →
-            </a>
-          )}
         </article>
       ))}
     </div>

@@ -34,15 +34,20 @@ export const ResearchListBlock: React.FC<ResearchListProps> = ({ heading, items 
             )}
           </div>
           <h3 className="text-xl font-bold text-white group-hover:text-indigo-300 transition-colors">
-            {item.title}
+            {item.url ? (
+              <a 
+                href={item.url} 
+                aria-label={`View project: ${item.title}`}
+                className="focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
+              >
+                {item.title}
+              </a>
+            ) : (
+              item.title
+            )}
           </h3>
           {item.description && (
             <p className="text-sm text-slate-400 leading-relaxed">{item.description}</p>
-          )}
-          {item.url && (
-            <a href={item.url} className="inline-flex items-center gap-1 text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors">
-              View Project →
-            </a>
           )}
         </article>
       ))}

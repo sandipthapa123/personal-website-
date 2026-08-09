@@ -13,6 +13,7 @@ export interface PublicationListProps {
     citationApa?: string;
     citationMla?: string;
     type?: string;
+    url?: string;
   }>;
 }
 
@@ -40,7 +41,19 @@ export const PublicationListBlock: React.FC<PublicationListProps> = ({ heading, 
             )}
           </div>
 
-          <h3 className="text-lg font-bold text-white leading-snug">{pub.title}</h3>
+          <h3 className="text-lg font-bold text-white leading-snug">
+            {pub.url ? (
+              <a 
+                href={pub.url}
+                aria-label={`View publication: ${pub.title}`}
+                className="hover:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded transition-colors"
+              >
+                {pub.title}
+              </a>
+            ) : (
+              pub.title
+            )}
+          </h3>
 
           {pub.authors && pub.authors.length > 0 && (
             <p className="text-xs text-slate-400">Authors: {pub.authors.join(', ')}</p>
