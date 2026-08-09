@@ -12,16 +12,17 @@
     "build": "npm run build:packages && npm --workspace=apps/backend run build && npm --workspace=apps/frontend run build",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "dev": "npm run dev:backend",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm run build:packages && npm --workspace=apps/backend run start:dev",
     "dev:frontend": "npm --workspace=apps/frontend run dev",
     "db:migrate": "npm --workspace=apps/backend run db:migrate",
     "db:seed": "npm --workspace=apps/backend run db:seed"
   },
   "devDependencies": {
-    "typescript": "^5.5.4",
+    "concurrently": "^10.0.4",
+    "eslint": "^9.8.0",
     "prettier": "^3.3.3",
-    "eslint": "^9.8.0"
+    "typescript": "^5.5.4"
   },
   "engines": {
     "node": ">=20.0.0"
