@@ -12,7 +12,7 @@ export interface ContactFormBlockProps {
 export const ContactFormBlock: React.FC<ContactFormBlockProps> = ({
   heading = 'Contact',
   description = 'For research inquiries, keynote speaking, or legal consulting, reach out via the secure portal.',
-  apiEndpoint = 'http://localhost:4000/api/v1/notifications/send',
+  apiEndpoint = 'http://127.0.0.1:4000/api/v1/notifications/send',
   isNewsletter = false,
 }) => {
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');

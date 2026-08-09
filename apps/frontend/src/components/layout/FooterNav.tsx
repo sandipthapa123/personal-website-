@@ -71,7 +71,7 @@ export function FooterNav() {
   const [copyright, setCopyright] = useState('© 2083 BS / 2026 AD Sandip Thapa. All rights reserved.');
 
   useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000/api/v1';
     fetch(`${apiBase}/navigation/footer`)
       .then((r) => r.json())
       .then((data) => {

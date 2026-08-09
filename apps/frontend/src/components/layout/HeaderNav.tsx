@@ -130,7 +130,7 @@ export function HeaderNav() {
 
   // Fetch navigation from backend
   useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000/api/v1';
     fetch(`${apiBase}/navigation/main`)
       .then((r) => r.json())
       .then((res) => {
@@ -190,7 +190,7 @@ export function HeaderNav() {
       setSearchResults([]);
       return;
     }
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000/api/v1';
     setSearching(true);
     fetch(`${apiBase}/search?q=${encodeURIComponent(q)}`)
       .then((r) => r.json())
