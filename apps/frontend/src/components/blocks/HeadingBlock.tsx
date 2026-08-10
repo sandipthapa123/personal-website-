@@ -23,12 +23,12 @@ export const HeadingBlock: React.FC<HeadingBlockProps> = ({
   const Tag = (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(`h${lvl}`) ? `h${lvl}` : 'h2') as keyof JSX.IntrinsicElements;
 
   const sizeClasses: Record<string, string> = {
-    '1': 'text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight my-6',
-    '2': 'text-2xl sm:text-3xl font-extrabold text-white tracking-tight my-4',
-    '3': 'text-xl sm:text-2xl font-bold text-slate-100 my-3',
-    '4': 'text-lg font-bold text-slate-200 my-2',
-    '5': 'text-base font-semibold text-slate-300 my-2',
-    '6': 'text-sm font-semibold text-slate-400 my-1 uppercase tracking-wider',
+    '1': 'font-serif-display text-3xl sm:text-5xl font-semibold text-ink-100 tracking-tight leading-tight my-6',
+    '2': 'font-serif-display text-2xl sm:text-3xl font-semibold text-ink-100 tracking-tight my-4',
+    '3': 'text-xl sm:text-2xl font-bold text-ink-100 my-3',
+    '4': 'text-lg font-bold text-ink-100 my-2',
+    '5': 'text-base font-semibold text-ink-400 my-2',
+    '6': 'text-sm font-semibold text-gold my-1 uppercase tracking-wider',
   };
 
   return (

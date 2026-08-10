@@ -2,6 +2,7 @@ import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { RevisionsService } from './revisions.service';
 import { PolicyGuard } from '../permissions/policy.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { RequirePolicy } from '../permissions/policy.decorator';
 import { PERMISSION_ACTIONS } from '@cms/constants';
 
@@ -26,7 +27,7 @@ export class RevisionsController {
   }
 
   @Post('pages/:id/rollback')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_EDIT)
   @ApiOperation({ summary: 'Rollback page layout & metadata to specified revision version' })
   async rollbackPage(@Param('id') pageId: string, @Body() body: { version: number }) {

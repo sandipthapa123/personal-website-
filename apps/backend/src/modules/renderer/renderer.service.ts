@@ -36,6 +36,18 @@ export class RendererService {
     'news',
   ]);
 
+  private readonly CONTENT_TYPE_PREFIX_MAP: Record<string, string> = {
+    articles: 'Article',
+    poems: 'Poem',
+    research: 'Research',
+    publications: 'Publication',
+    projects: 'Project',
+    events: 'Event',
+    news: 'News',
+    resources: 'Resource',
+    downloads: 'Download',
+  };
+
   constructor(
     private prisma: PrismaService,
     private universalContentService: UniversalContentService,
@@ -89,14 +101,94 @@ export class RendererService {
         }
       }
     } catch (err) {
-      // Database offline - fallback to dynamic route resolver
+      // Log the error but don't throw — fall through to dynamic resolver
+      console.error(`Database error rendering page '${cleanSlug}':`, err);
     }
 
     if (this.KNOWN_SECTIONS_WITH_CONTENT.has(cleanSlug)) {
       return this.getDynamicSectionSchema(cleanSlug, tenantId, lang);
     }
 
+    const segments = cleanSlug.split('/');
+    if (segments.length >= 2) {
+      const prefix = segments[0].toLowerCase();
+      const itemSlug = segments.slice(1).join('/');
+      const expectedType = this.CONTENT_TYPE_PREFIX_MAP[prefix];
+
+      if (expectedType) {
+        try {
+          const item = await this.universalContentService.getContentBySlug(itemSlug);
+          if (item && item.status === 'PUBLISHED') {
+            return this.getContentDetailSchema(item, tenantId, lang, prefix);
+          }
+        } catch {
+          // Not found — fall through to the empty-page placeholder
+        }
+      }
+    }
+
     return this.getEmptyPageResponse(cleanSlug, tenantId, lang);
+  }
+
+  private getContentDetailSchema(item: any, tenantId: string, lang: string, prefix: string): IPageRenderSchema {
+    const seo = item.seoMetadata || {};
+    const canonicalSlug = `${prefix}/${item.slug}`;
+
+    return {
+      tenant: {
+        id: tenantId,
+        slug: 'default',
+        name: 'Sandip Thapa - Legal Scholar & Disability Rights Researcher',
+        domain: 'thapasandip.com.np',
+      },
+      page: {
+        id: item.id,
+        slug: `/${canonicalSlug}`,
+        title: item.title,
+        locale: lang,
+        status: item.status as ContentStatus,
+        publishedAt: item.publishedAt,
+      },
+      seo: {
+        metaTitle: seo.metaTitle || item.title,
+        metaDescription: seo.metaDescription || item.summary || `${item.title} — Sandip Thapa`,
+        canonicalUrl: seo.canonicalUrl || `https://thapasandip.com.np/${canonicalSlug}`,
+        openGraphImage: seo.openGraphImage || undefined,
+      },
+      layout: {
+        id: `layout-content-${item.id}`,
+        name: 'Content Detail Layout',
+        regions: {
+          header: [],
+          sidebar: [],
+          main: [
+            {
+              blockId: `heading-${item.id}`,
+              type: 'HEADING',
+              props: { text: item.title, level: '1' },
+            },
+            {
+              blockId: `meta-${item.id}`,
+              type: 'TEXT_BLOCK',
+              props: {
+                subheading: [
+                  item.readingTime ? `${item.readingTime} min read` : null,
+                  item.wordCount ? `${item.wordCount} words` : null,
+                  item.views ? `${item.views.toLocaleString('en-US')} views` : null,
+                ].filter(Boolean).join(' · '),
+                content: item.summary || '',
+              },
+            },
+            {
+              blockId: `body-${item.id}`,
+              type: 'RICH_TEXT',
+              props: { content: item.content || '' },
+            },
+          ],
+          footer: [],
+        },
+      },
+    } as IPageRenderSchema;
   }
 
   private getEmptyPageResponse(slug: string, tenantId: string, lang: string) {
@@ -225,6 +317,10 @@ export class RendererService {
     const settings = await this.configService.getPublicSettings(tenantId);
     const profile = settings.profile || {};
 
+    if (slug === 'contact') {
+      return this.getContactPageSchema(tenantId, lang, settings, profile);
+    }
+
     const contentTypeMap: Record<string, string> = {
       'articles': 'Article',
       'poems': 'Poem',
@@ -238,7 +334,7 @@ export class RendererService {
     };
 
     const targetType = contentTypeMap[slug.toLowerCase()] || formattedTitle;
-    const repoData = this.universalContentService.getAllContent({ contentType: targetType, status: 'PUBLISHED' });
+    const repoData = await this.universalContentService.getAllContent({ contentType: targetType, status: 'PUBLISHED' });
     const sectionItems = (repoData && repoData.items) ? repoData.items : [];
 
     return {
@@ -297,7 +393,7 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: `All Published Items under ${formattedTitle}`,
-                items: sectionItems.map((it) => ({
+                items: sectionItems.map((it: any) => ({
                   id: it.id,
                   title: it.title,
                   slug: it.slug,
@@ -320,6 +416,56 @@ export class RendererService {
     };
   }
 
+  private getContactPageSchema(tenantId: string, lang: string, settings: any, profile: any): IPageRenderSchema {
+    const domain = settings.identity?.domain || 'thapasandip.com.np';
+
+    return {
+      tenant: {
+        id: tenantId,
+        slug: 'default',
+        name: profile.name ? `${profile.name} - ${profile.title}` : 'Sandip Thapa - Legal Scholar & Academic Researcher',
+        domain,
+      },
+      page: {
+        id: 'page-contact',
+        slug: '/contact',
+        title: `Contact | ${profile.name || 'Sandip Thapa'}`,
+        locale: lang,
+        status: 'PUBLISHED' as ContentStatus,
+        publishedAt: new Date().toISOString(),
+      },
+      seo: {
+        metaTitle: `Contact | ${profile.name || 'Sandip Thapa'}`,
+        metaDescription: `Get in touch with ${profile.name || 'Sandip Thapa'} for research inquiries, keynote speaking, or legal consulting.`,
+        canonicalUrl: `https://${domain}/contact`,
+      },
+      layout: {
+        id: 'layout-contact',
+        name: 'Contact Page Layout',
+        regions: {
+          header: [],
+          sidebar: [],
+          main: [
+            {
+              blockId: 'contact-hero',
+              type: 'HEADING',
+              props: { text: 'Contact', level: '1' },
+            },
+            {
+              blockId: 'contact-form',
+              type: 'CONTACT_FORM',
+              props: {
+                heading: 'Get in Touch',
+                subheading: 'For research inquiries, keynote speaking, or legal consulting, reach out via the secure portal.',
+              },
+            },
+          ],
+          footer: [],
+        },
+      },
+    } as IPageRenderSchema;
+  }
+
   private async get14SectionHomepageSchema(tenantId: string, lang: string): Promise<IPageRenderSchema> {
     const settings = await this.configService.getPublicSettings(tenantId);
     const profile = settings.profile || {};
@@ -328,41 +474,41 @@ export class RendererService {
     const stats = settings.stats || {};
     const identity = settings.identity || {};
 
-    const repositoryData = this.universalContentService.getAllContent({ includeDeleted: false });
+    const repositoryData = await this.universalContentService.getAllContent({ includeDeleted: false });
     const allItems = (repositoryData && repositoryData.items) ? repositoryData.items : [];
 
-    const publishedItems = allItems.filter((it) => it.status === 'PUBLISHED');
+    const publishedItems = allItems.filter((it: any) => it.status === 'PUBLISHED');
 
-    const featuredItems = publishedItems.filter((it) =>
-      it.contentTypes.some((t) => t.toLowerCase() === 'featured' || t.toLowerCase() === 'article')
+    const featuredItems = publishedItems.filter((it: any) =>
+      it.contentTypes.some((t: any) => t.toLowerCase() === 'featured' || t.toLowerCase() === 'article')
     );
 
-    const articleItems = publishedItems.filter((it) =>
-      it.contentTypes.some((t) => t.toLowerCase() === 'article')
+    const articleItems = publishedItems.filter((it: any) =>
+      it.contentTypes.some((t: any) => t.toLowerCase() === 'article')
     );
 
-    const researchItems = publishedItems.filter((it) =>
-      it.contentTypes.some((t) => t.toLowerCase() === 'research')
+    const researchItems = publishedItems.filter((it: any) =>
+      it.contentTypes.some((t: any) => t.toLowerCase() === 'research')
     );
 
-    const publicationItems = publishedItems.filter((it) =>
-      it.contentTypes.some((t) => t.toLowerCase() === 'publication')
+    const publicationItems = publishedItems.filter((it: any) =>
+      it.contentTypes.some((t: any) => t.toLowerCase() === 'publication')
     );
 
-    const poemItems = publishedItems.filter((it) =>
-      it.contentTypes.some((t) => t.toLowerCase() === 'poem')
+    const poemItems = publishedItems.filter((it: any) =>
+      it.contentTypes.some((t: any) => t.toLowerCase() === 'poem')
     );
 
-    const projectItems = publishedItems.filter((it) =>
-      it.contentTypes.some((t) => t.toLowerCase() === 'project' || t.toLowerCase() === 'portfolio')
+    const projectItems = publishedItems.filter((it: any) =>
+      it.contentTypes.some((t: any) => t.toLowerCase() === 'project' || t.toLowerCase() === 'portfolio')
     );
 
-    const eventItems = publishedItems.filter((it) =>
-      it.contentTypes.some((t) => t.toLowerCase() === 'event')
+    const eventItems = publishedItems.filter((it: any) =>
+      it.contentTypes.some((t: any) => t.toLowerCase() === 'event')
     );
 
-    const newsItems = publishedItems.filter((it) =>
-      it.contentTypes.some((t) => t.toLowerCase() === 'news')
+    const newsItems = publishedItems.filter((it: any) =>
+      it.contentTypes.some((t: any) => t.toLowerCase() === 'news')
     );
 
     return {
@@ -430,7 +576,7 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: 'Featured Article',
-                items: (featuredItems.length > 0 ? featuredItems.slice(0, 1) : articleItems.slice(0, 1)).map((it) => ({
+                items: (featuredItems.length > 0 ? featuredItems.slice(0, 1) : articleItems.slice(0, 1)).map((it: any) => ({
                   id: it.id,
                   title: it.title,
                   slug: it.slug,
@@ -449,7 +595,7 @@ export class RendererService {
               type: 'ARTICLE_LIST',
               props: {
                 heading: 'Latest Articles & Essays',
-                items: articleItems.map((it) => ({
+                items: articleItems.map((it: any) => ({
                   id: it.id,
                   title: it.title,
                   slug: it.slug,
@@ -470,7 +616,7 @@ export class RendererService {
               type: 'RESEARCH_LIST',
               props: {
                 heading: 'Featured Research Projects',
-                items: (researchItems.length > 0 ? researchItems : publishedItems.filter(i => i.contentTypes.includes('Research'))).map((it) => ({
+                items: (researchItems.length > 0 ? researchItems : publishedItems.filter((i: any) => i.contentTypes.includes('Research'))).map((it: any) => ({
                   id: it.id,
                   title: it.title,
                   slug: it.slug,
@@ -486,7 +632,7 @@ export class RendererService {
               type: 'PUBLICATION_LIST',
               props: {
                 heading: 'Latest Publications & Citations',
-                items: (publicationItems.length > 0 ? publicationItems : publishedItems.filter(i => i.contentTypes.includes('Publication'))).map((it) => ({
+                items: (publicationItems.length > 0 ? publicationItems : publishedItems.filter((i: any) => i.contentTypes.includes('Publication'))).map((it: any) => ({
                   id: it.id,
                   title: it.title,
                   slug: it.slug,
@@ -502,7 +648,7 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: 'Featured Poem',
-                items: (poemItems.length > 0 ? poemItems : publishedItems.filter(i => i.contentTypes.includes('Poem'))).map((it) => ({
+                items: (poemItems.length > 0 ? poemItems : publishedItems.filter((i: any) => i.contentTypes.includes('Poem'))).map((it: any) => ({
                   id: it.id,
                   title: it.title,
                   slug: it.slug,
@@ -519,7 +665,7 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: 'Featured Project & Software',
-                items: (projectItems.length > 0 ? projectItems : publishedItems.filter(i => i.contentTypes.includes('Project'))).map((it) => ({
+                items: (projectItems.length > 0 ? projectItems : publishedItems.filter((i: any) => i.contentTypes.includes('Project'))).map((it: any) => ({
                   id: it.id,
                   title: it.title,
                   slug: it.slug,
@@ -546,7 +692,7 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: 'Upcoming Events & Speaking',
-                items: (eventItems.length > 0 ? eventItems : publishedItems.filter(i => i.contentTypes.includes('Event'))).map((it) => ({
+                items: (eventItems.length > 0 ? eventItems : publishedItems.filter((i: any) => i.contentTypes.includes('Event'))).map((it: any) => ({
                   id: it.id,
                   title: it.title,
                   slug: it.slug,
@@ -561,7 +707,7 @@ export class RendererService {
               type: 'CARD_GRID',
               props: {
                 heading: 'Media & Interviews',
-                items: (newsItems.length > 0 ? newsItems : publishedItems.filter(i => i.contentTypes.includes('News'))).map((it) => ({
+                items: (newsItems.length > 0 ? newsItems : publishedItems.filter((i: any) => i.contentTypes.includes('News'))).map((it: any) => ({
                   id: it.id,
                   title: it.title,
                   slug: it.slug,

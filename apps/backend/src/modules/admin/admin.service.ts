@@ -45,16 +45,38 @@ export class AdminService {
 
     const results: Array<{ id: string; domain: string; title: string; subtitle: string; url: string }> = [];
 
-    // Static / Registered Domain Items Search
-    const pages = [
-      { id: 'p-home', domain: 'Pages', title: 'Home Page', subtitle: '/', url: '/' },
-      { id: 'p-about', domain: 'Pages', title: 'About & Biography', subtitle: '/about/biography', url: '/about/biography' },
-      { id: 'p-research', domain: 'Pages', title: 'Research Projects', subtitle: '/research/projects', url: '/research/projects' },
-      { id: 'p-pubs', domain: 'Pages', title: 'Publications & Citations', subtitle: '/publications', url: '/publications' },
+    // Search content from database
+    try {
+      const dbResults = await this.prisma.universalContent.findMany({
+        where: {
+          title: { contains: q },
+          deleted_at: null,
+        },
+        take: 10,
+        orderBy: { updated_at: 'desc' },
+      });
+
+      dbResults.forEach((item) => {
+        results.push({
+          id: item.id,
+          domain: item.content_type || 'Content',
+          title: item.title,
+          subtitle: `/${item.slug}`,
+          url: `/${item.slug}`,
+        });
+      });
+    } catch (err) {
+      console.error('Admin search database error', err);
+    }
+
+    // Also search static admin pages
+    const adminPages = [
+      { id: 'p-dashboard', domain: 'System', title: 'Dashboard', subtitle: '/admin/dashboard', url: '/admin/dashboard' },
       { id: 'p-editor', domain: 'System', title: 'Editor.js Visual Builder', subtitle: '/admin/editor', url: '/admin/editor' },
+      { id: 'p-content', domain: 'System', title: 'Content Manager', subtitle: '/admin/content', url: '/admin/content' },
     ];
 
-    pages.forEach((p) => {
+    adminPages.forEach((p) => {
       if (p.title.toLowerCase().includes(q) || p.subtitle.toLowerCase().includes(q)) {
         results.push(p);
       }
@@ -86,18 +108,34 @@ export class AdminService {
   async exportContent(format: 'json' | 'csv' | 'xml' | 'markdown', contentTypes: string[]) {
     const timestamp = new Date().toISOString();
 
+    // Query real content from database
+    let items: any[] = [];
+    try {
+      const where: any = { deleted_at: null };
+      if (contentTypes && contentTypes.length > 0 && !contentTypes.includes('ALL')) {
+        where.content_type = { in: contentTypes };
+      }
+      items = await this.prisma.universalContent.findMany({ where, orderBy: { updated_at: 'desc' } });
+    } catch (err) {
+      console.error('Export content database error', err);
+    }
+
     if (format === 'csv') {
-      const csv = `ID,Title,Type,Status,Locale\n1,Legal Capacity & Supported Decision-Making,Article,PUBLISHED,en\n2,Harmonizing Nepalese Disability Legislation,Research,PUBLISHED,en`;
+      const header = 'ID,Title,Type,Status,Locale';
+      const rows = items.map(i => `${i.id},"${(i.title || '').replace(/"/g, '""')}",${i.content_type},${i.status},${i.locale}`);
+      const csv = [header, ...rows].join('\n');
       return { format: 'csv', mimeType: 'text/csv', data: csv, filename: `export-${timestamp}.csv` };
     }
 
     if (format === 'xml') {
-      const xml = `<?xml version="1.0"?><export><item><id>1</id><title>Legal Capacity</title></item></export>`;
+      const xmlItems = items.map(i => `<item><id>${i.id}</id><title>${i.title}</title><type>${i.content_type}</type></item>`).join('');
+      const xml = `<?xml version="1.0"?><export>${xmlItems}</export>`;
       return { format: 'xml', mimeType: 'application/xml', data: xml, filename: `export-${timestamp}.xml` };
     }
 
     if (format === 'markdown') {
-      const md = `# Exported Content Directory\n\n- Legal Capacity & Supported Decision-Making under UN CRPD in Nepal\n- Harmonizing Nepalese Disability Legislation`;
+      const mdItems = items.map(i => `- ${i.title} (${i.content_type}, ${i.status})`).join('\n');
+      const md = `# Exported Content Directory\n\n${mdItems || 'No content found.'}`;
       return { format: 'markdown', mimeType: 'text/markdown', data: md, filename: `export-${timestamp}.md` };
     }
 
@@ -107,9 +145,7 @@ export class AdminService {
       data: {
         exportedAt: timestamp,
         types: contentTypes,
-        items: [
-          { id: '1', title: 'Legal Capacity & Supported Decision-Making', type: 'Article', status: 'PUBLISHED' },
-        ],
+        items: items.map(i => ({ id: i.id, title: i.title, type: i.content_type, status: i.status })),
       },
       filename: `export-${timestamp}.json`,
     };
@@ -124,7 +160,7 @@ export class AdminService {
       timestamp: new Date().toISOString(),
       user: 'lafasandip15@gmail.com',
       action: 'CACHE_FLUSH',
-      details: 'All platform Redis & in-memory caches flushed',
+      details: 'In-memory application cache cleared',
     });
 
     return {

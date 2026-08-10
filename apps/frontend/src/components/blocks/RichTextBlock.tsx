@@ -29,7 +29,7 @@ export const RichTextBlock: React.FC<RichTextBlockProps> = ({
 
   return (
     <div
-      className={`prose prose-invert max-w-none text-slate-300 leading-relaxed text-base ${alignClass}`}
+      className={`prose max-w-none text-base ${alignClass}`}
       style={{
         fontSize: fontSize || undefined,
         color: color || undefined,

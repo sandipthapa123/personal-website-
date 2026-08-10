@@ -38,7 +38,7 @@ export const ReaderEngagementBar: React.FC<ReaderEngagementBarProps> = ({
             liked ? 'bg-rose-600 text-white' : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700'
           }`}
         >
-          ❤️ {liked ? 'Liked' : 'Like'} ({likes.toLocaleString()})
+          ❤️ {liked ? 'Liked' : 'Like'} ({likes.toLocaleString('en-US')})
         </button>
         <button
           onClick={() => setBookmarked(!bookmarked)}
@@ -51,7 +51,7 @@ export const ReaderEngagementBar: React.FC<ReaderEngagementBarProps> = ({
       </div>
 
       <div className="flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
-        <span>📝 {wordCount.toLocaleString()} words</span>
+        <span>📝 {wordCount.toLocaleString('en-US')} words</span>
         <span>🧠 {difficulty}</span>
       </div>
     </div>

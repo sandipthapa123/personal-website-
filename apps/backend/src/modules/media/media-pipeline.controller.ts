@@ -3,6 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { MediaPipelineService } from './media-pipeline.service';
 import { PolicyGuard } from '../permissions/policy.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { RequirePolicy } from '../permissions/policy.decorator';
 import { PERMISSION_ACTIONS } from '@cms/constants';
 
@@ -28,7 +29,7 @@ export class MediaPipelineController {
   }
 
   @Post('upload')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.MEDIA_UPLOAD)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')

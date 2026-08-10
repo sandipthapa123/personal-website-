@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Headers, UseGuards } from '@nestjs/common'
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AccessibilityBackendService } from './accessibility-backend.service';
 import { PolicyGuard } from '../permissions/policy.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { RequirePolicy } from '../permissions/policy.decorator';
 import { PERMISSION_ACTIONS } from '@cms/constants';
 import { IAccessibilityPreferences } from '@cms/accessibility';
@@ -28,7 +29,7 @@ export class AccessibilityBackendController {
   }
 
   @Post()
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Update tenant WCAG 2.2 AAA accessibility preferences' })
   async updatePreferences(

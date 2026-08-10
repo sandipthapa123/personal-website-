@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { CmsApiClient } from '@cms/api-client';
 
 export const CommandPalette: React.FC = () => {
@@ -27,22 +28,31 @@ export const CommandPalette: React.FC = () => {
       setResults([]);
       return;
     }
-    const apiClient = new CmsApiClient({
-      baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000',
-    });
 
-    apiClient
-      .getRenderPage(query)
-      .then((res) => {
-        if (res.data?.page) {
-          setResults([{ title: res.data.page.title, url: `/${res.data.page.slug}`, type: 'Page' }]);
-        }
-      })
-      .catch(() => {
-        setResults([
-          { title: `Search for "${query}" in Research`, url: `/search?q=${query}`, type: 'Search' },
-        ]);
+    const handler = setTimeout(() => {
+      const apiClient = new CmsApiClient({
+        baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000',
       });
+
+      apiClient
+        .getRenderPage(query)
+        .then((res) => {
+          if (res.data?.page) {
+            setResults([{ id: `page-${res.data.page.slug}`, title: res.data.page.title, url: `/${res.data.page.slug}`, type: 'Page' }]);
+          } else {
+            setResults([
+              { id: `search-${query}`, title: `Search for "${query}"`, url: `/search?q=${query}`, type: 'Search' },
+            ]);
+          }
+        })
+        .catch(() => {
+          setResults([
+            { id: `search-${query}`, title: `Search for "${query}"`, url: `/search?q=${query}`, type: 'Search' },
+          ]);
+        });
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(handler);
   }, [query]);
 
   if (!isOpen) return null;
@@ -85,17 +95,18 @@ export const CommandPalette: React.FC = () => {
               </ul>
             </div>
           ) : (
-            results.map((r, idx) => (
-              <a
-                key={idx}
+            results.map((r) => (
+              <Link
+                key={r.id || r.url}
                 href={r.url}
+                onClick={() => setIsOpen(false)}
                 className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-sm"
               >
                 <span className="font-medium text-slate-900 dark:text-white">{r.title}</span>
                 <span className="text-xs px-2 py-0.5 bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 rounded">
                   {r.type}
                 </span>
-              </a>
+              </Link>
             ))
           )}
         </div>

@@ -76,20 +76,20 @@ export class NavigationService {
 
   private seedDefaultMenus() {
     const primaryHeaderItems: IMenuItem[] = [
-      { id: 'mi-home', title: '', targetType: 'internal_page', targetId: 'page-home', targetUrl: '', active: true, order: 0 },
+      { id: 'mi-home', title: 'Home', targetType: 'internal_page', targetId: 'page-home', targetUrl: '/', active: true, order: 0 },
       {
         id: 'mi-about',
         title: 'About',
         targetType: 'internal_page',
         targetId: 'page-about',
-        targetUrl: '',
+        targetUrl: '/about',
         active: true,
         order: 1,
         children: [
-          { id: 'mi-bio', title: '', targetType: 'internal_page', targetId: 'page-biography', targetUrl: '', active: true, order: 0 },
-          { id: 'mi-edu', title: '', targetType: 'internal_page', targetId: 'page-education', targetUrl: '', active: true, order: 1 },
-          { id: 'mi-exp', title: '', targetType: 'internal_page', targetId: 'page-experience', targetUrl: '', active: true, order: 2 },
-          { id: 'mi-cv', title: '', targetType: 'internal_page', targetId: 'page-resume', targetUrl: '', active: true, order: 3 },
+          { id: 'mi-bio', title: 'Biography', targetType: 'internal_page', targetId: 'page-biography', targetUrl: '/about/biography', active: true, order: 0 },
+          { id: 'mi-edu', title: 'Education', targetType: 'internal_page', targetId: 'page-education', targetUrl: '/about/education', active: true, order: 1 },
+          { id: 'mi-exp', title: 'Experience', targetType: 'internal_page', targetId: 'page-experience', targetUrl: '/about/experience', active: true, order: 2 },
+          { id: 'mi-cv', title: 'CV / Resume', targetType: 'internal_page', targetId: 'page-resume', targetUrl: '/about/resume', active: true, order: 3 },
         ],
       },
       {
@@ -101,8 +101,8 @@ export class NavigationService {
         order: 2,
         children: [
           { id: 'mi-art-all', title: 'All Articles', targetType: 'internal_page', targetUrl: '/articles', active: true, order: 0 },
-          { id: 'mi-art-cat', title: '', targetType: 'category', targetId: 'cat-1', targetUrl: '', active: true, order: 1 },
-          { id: 'mi-art-cat2', title: '', targetType: 'category', targetId: 'cat-4', targetUrl: '', active: true, order: 2 },
+          { id: 'mi-art-cat', title: 'Categories', targetType: 'internal_page', targetUrl: '/articles/categories', active: true, order: 1 },
+          { id: 'mi-art-cat2', title: 'Tags', targetType: 'internal_page', targetUrl: '/articles/tags', active: true, order: 2 },
         ],
       },
       {
@@ -131,7 +131,7 @@ export class NavigationService {
         ],
       },
       { id: 'mi-poems', title: 'Poems & Literature', targetType: 'internal_page', targetUrl: '/poems', active: true, order: 5 },
-      { id: 'mi-contact', title: '', targetType: 'internal_page', targetId: 'page-contact', targetUrl: '', active: true, order: 6 },
+      { id: 'mi-contact', title: 'Contact', targetType: 'internal_page', targetId: 'page-contact', targetUrl: '/contact', active: true, order: 6 },
     ];
 
     const mainHeaderMenu: IMenuSchema = {
@@ -153,7 +153,7 @@ export class NavigationService {
       enabled: true,
       version: 1,
       items: [
-        { id: 'mi-f-bio', title: '', targetType: 'internal_page', targetId: 'page-biography', targetUrl: '', active: true, order: 0 },
+        { id: 'mi-f-bio', title: 'Biography', targetType: 'internal_page', targetId: 'page-biography', targetUrl: '/about/biography', active: true, order: 0 },
         { id: 'mi-f-priv', title: 'Privacy Policy', targetType: 'internal_page', targetUrl: '/privacy', active: true, order: 1 },
         { id: 'mi-f-terms', title: 'Terms of Service', targetType: 'internal_page', targetUrl: '/terms', active: true, order: 2 },
         { id: 'mi-f-access', title: 'Accessibility Statement (WCAG 2.2 AAA)', targetType: 'internal_page', targetUrl: '/accessibility-statement', active: true, order: 3 },

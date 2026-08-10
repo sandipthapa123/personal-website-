@@ -93,7 +93,7 @@ export function FooterNav() {
 
   return (
     <footer
-      className="bg-slate-950 border-t border-slate-900 text-slate-400 text-xs"
+      className="bg-ink border-t border-ink-border text-ink-400 text-xs"
       role="contentinfo"
       id="site-footer"
     >
@@ -102,17 +102,17 @@ export function FooterNav() {
           {/* Brand / About Column */}
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-sky-600 rounded-lg flex items-center justify-center font-black text-sm text-white shadow">
+              <div className="w-8 h-8 bg-gold rounded-lg flex items-center justify-center font-serif-display font-bold text-sm text-ink shadow">
                 ST
               </div>
-              <span className="font-extrabold text-white text-sm">Sandip Thapa</span>
+              <span className="font-serif-display font-semibold text-ink-100 text-sm">Sandip Thapa</span>
             </div>
-            <p className="text-slate-400 leading-relaxed text-[12px]">{aboutText}</p>
+            <p className="text-ink-400 leading-relaxed text-[12px]">{aboutText}</p>
             <div className="space-y-1 pt-1">
-              <div className="text-[11px] text-sky-400/80 font-semibold">
+              <div className="text-[11px] text-gold/80 font-semibold">
                 🕐 Nepal Standard Time (NPT, UTC+05:45)
               </div>
-              <div className="text-[11px] text-slate-500">
+              <div className="text-[11px] text-ink-400">
                 Kathmandu, Nepal 🇳🇵
               </div>
             </div>
@@ -127,7 +127,7 @@ export function FooterNav() {
                   rel="noopener noreferrer"
                   aria-label={s.platform}
                   title={s.platform}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-sky-800 rounded-lg transition-all text-[10px] font-semibold text-slate-300 hover:text-sky-300"
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-ink-elevated hover:bg-ink-elevated/70 border border-ink-border hover:border-gold/40 rounded-lg transition-all text-[10px] font-semibold text-ink-400 hover:text-gold"
                 >
                   <span>{PLATFORM_ICONS[s.platform] || '🔗'}</span>
                   <span className="hidden sm:inline">{s.platform}</span>
@@ -139,14 +139,14 @@ export function FooterNav() {
           {/* Dynamic Backend-Driven Footer Columns */}
           {columns.map((col) => (
             <div key={col.title} className="space-y-4">
-              <h4 className="font-extrabold text-white uppercase tracking-widest text-[10px]">{col.title}</h4>
+              <h4 className="font-extrabold text-ink-100 uppercase tracking-widest text-[10px]">{col.title}</h4>
               <nav aria-label={`Footer: ${col.title}`}>
                 <ul className="space-y-2.5">
                   {col.links.map((link) => (
                     <li key={link.label}>
                       <Link
                         href={link.url}
-                        className="text-slate-400 hover:text-sky-300 transition-colors leading-snug block text-[12px]"
+                        className="text-ink-400 hover:text-gold transition-colors leading-snug block text-[12px]"
                       >
                         {link.label}
                       </Link>
@@ -159,21 +159,21 @@ export function FooterNav() {
         </div>
 
         {/* Bottom Row */}
-        <div className="border-t border-slate-900 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-600 text-[11px]">
+        <div className="border-t border-ink-border pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-ink-400/70 text-[11px]">
           <p>{copyright}</p>
           <div className="flex items-center gap-4">
-            <Link href="/privacy" className="hover:text-slate-400 transition-colors">
+            <Link href="/privacy" className="hover:text-ink-100 transition-colors">
               Privacy
             </Link>
-            <Link href="/terms" className="hover:text-slate-400 transition-colors">
+            <Link href="/terms" className="hover:text-ink-100 transition-colors">
               Terms
             </Link>
-            <Link href="/accessibility-statement" className="hover:text-slate-400 transition-colors">
+            <Link href="/accessibility-statement" className="hover:text-ink-100 transition-colors">
               Accessibility
             </Link>
             <a
               href="/admin/login"
-              className="hover:text-sky-400 transition-colors font-semibold"
+              className="hover:text-gold transition-colors font-semibold"
               target="_blank"
               rel="noopener noreferrer"
             >

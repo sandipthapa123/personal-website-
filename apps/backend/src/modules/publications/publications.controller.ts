@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Headers, UseGuards } f
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PublicationsService } from './publications.service';
 import { PolicyGuard } from '../permissions/policy.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { RequirePolicy } from '../permissions/policy.decorator';
 import { PERMISSION_ACTIONS } from '@cms/constants';
 
@@ -24,7 +25,7 @@ export class PublicationsController {
   }
 
   @Post()
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_CREATE)
   @ApiOperation({ summary: 'Create academic publication entry' })
   async createPublication(@Headers('x-tenant-id') tenantId: string, @Body() body: any) {
@@ -39,7 +40,7 @@ export class PublicationsController {
   }
 
   @Put(':id')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_EDIT)
   @ApiOperation({ summary: 'Update academic publication entry' })
   async updatePublication(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string, @Body() body: any) {
@@ -49,7 +50,7 @@ export class PublicationsController {
   }
 
   @Delete(':id')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_DELETE)
   @ApiOperation({ summary: 'Delete academic publication entry' })
   async deletePublication(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {
@@ -68,7 +69,7 @@ export class PublicationsController {
   }
 
   @Post('research/projects')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_CREATE)
   @ApiOperation({ summary: 'Create research project' })
   async createResearchProject(@Headers('x-tenant-id') tenantId: string, @Body() body: any) {

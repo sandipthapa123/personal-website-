@@ -28,7 +28,7 @@ export class BlogService {
     const slug = data.slug || slugify(data.title || 'untitled');
     const contentTypes = data.contentTypes || ['Article'];
 
-    const item = this.universalService.createContent({
+    const item = await this.universalService.createContent({
       tenantId,
       title: data.title,
       slug,
@@ -47,24 +47,24 @@ export class BlogService {
   }
 
   async updatePost(tenantId: string, id: string, data: any) {
-    return this.universalService.updateContent(id, data);
+    return await this.universalService.updateContent(id, data);
   }
 
   async deletePost(tenantId: string, id: string) {
-    this.universalService.softDeleteContent(id);
+    await this.universalService.deleteContent(id);
     return { success: true, message: `Post ${id} moved to Recycle Bin` };
   }
 
   async getPostBySlug(tenantId: string, slug: string) {
     try {
-      return this.universalService.getContentBySlug(slug);
+      return await this.universalService.getContentBySlug(slug);
     } catch (err) {
       throw new NotFoundException(`Blog post '${slug}' not found`);
     }
   }
 
   async getPublishedPosts(tenantId: string, limit = 10, page = 1, statusFilter?: string) {
-    const res = this.universalService.getAllContent({
+    const res = await this.universalService.getAllContent({
       contentType: 'Article',
       status: statusFilter || 'PUBLISHED',
       page,
@@ -114,7 +114,7 @@ export class BlogService {
 
   // Poems Domain
   async getPoems(tenantId: string) {
-    const res = this.universalService.getAllContent({
+    const res = await this.universalService.getAllContent({
       contentType: 'Poem',
       limit: 100,
     });
@@ -122,7 +122,7 @@ export class BlogService {
   }
 
   async createPoem(tenantId: string, data: any) {
-    return this.universalService.createContent({
+    return await this.universalService.createContent({
       tenantId,
       title: data.title,
       slug: data.slug || slugify(data.title || 'untitled-poem'),

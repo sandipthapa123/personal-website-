@@ -24,7 +24,7 @@ export class PublicationsService {
   async createPublication(tenantId: string, data: any) {
     const citations = this.generateCitations(data.title, data.authors || ['Sandip Thapa'], data.journal);
 
-    return this.universalService.createContent({
+    return await this.universalService.createContent({
       tenantId,
       title: data.title,
       slug: data.slug || slugify(data.title || 'untitled-publication'),
@@ -45,7 +45,7 @@ export class PublicationsService {
   }
 
   async getPublications(tenantId: string) {
-    const res = this.universalService.getAllContent({
+    const res = await this.universalService.getAllContent({
       contentType: 'Publication',
       limit: 100,
     });
@@ -53,17 +53,17 @@ export class PublicationsService {
   }
 
   async updatePublication(tenantId: string, id: string, data: any) {
-    return this.universalService.updateContent(id, data);
+    return await this.universalService.updateContent(id, data);
   }
 
   async deletePublication(tenantId: string, id: string) {
-    this.universalService.softDeleteContent(id);
+    await this.universalService.deleteContent(id);
     return { success: true, message: `Publication ${id} deleted` };
   }
 
   // Research Projects
   async getResearchProjects(tenantId: string) {
-    const res = this.universalService.getAllContent({
+    const res = await this.universalService.getAllContent({
       contentType: 'Research',
       limit: 100,
     });
@@ -71,7 +71,7 @@ export class PublicationsService {
   }
 
   async createResearchProject(tenantId: string, data: any) {
-    return this.universalService.createContent({
+    return await this.universalService.createContent({
       tenantId,
       title: data.title,
       slug: data.slug || slugify(data.title || 'untitled-research'),

@@ -10,7 +10,10 @@ export class CmsApiClient {
   private tenantId?: string;
 
   constructor(config: IApiClientConfig) {
-    this.baseUrl = config.baseUrl;
+    // Accept either the bare origin (http://host:port) or an origin that already
+    // includes the /api/v1 prefix (as NEXT_PUBLIC_API_URL is configured) — normalize
+    // to the bare origin since every method here appends /api/v1 itself.
+    this.baseUrl = config.baseUrl.replace(/\/api\/v1\/?$/, '').replace(/\/+$/, '');
     this.tenantId = config.tenantId;
   }
 
@@ -29,6 +32,10 @@ export class CmsApiClient {
     const res = await fetch(url, {
       method: 'GET',
       headers: this.getHeaders(),
+      // Content is backend/admin-driven and must always reflect the latest published
+      // state — Next.js's default indefinite fetch cache would otherwise pin pages to
+      // whatever was first rendered.
+      cache: 'no-store',
     });
     if (!res.ok) {
       throw new Error(`Failed to fetch page render schema: ${res.statusText}`);

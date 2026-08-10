@@ -26,6 +26,9 @@ import { HealthModule } from './modules/health/health.module';
 import { EditorModule } from './modules/editor/editor.module';
 import { SeoModule } from './modules/seo/seo.module';
 import { UniversalContentModule } from './modules/content/universal-content.module';
+import { ContactModule } from './modules/contact/contact.module';
+import { UsersModule } from './modules/users/users.module';
+import { AccountModule } from './modules/account/account.module';
 
 @Module({
   imports: [
@@ -55,6 +58,9 @@ import { UniversalContentModule } from './modules/content/universal-content.modu
     EditorModule,
     SeoModule,
     UniversalContentModule,
+    ContactModule,
+    UsersModule,
+    AccountModule,
   ],
 })
 export class AppModule {}

@@ -20,5 +20,5 @@ export const DividerBlock: React.FC<DividerBlockProps> = ({ style = 'solid', spa
     double: 'border-double border-b-4',
   }[style];
 
-  return <hr className={`border-t border-slate-800 ${marginClass} ${borderClass}`} />;
+  return <hr className={`border-t border-ink-border ${marginClass} ${borderClass}`} />;
 };

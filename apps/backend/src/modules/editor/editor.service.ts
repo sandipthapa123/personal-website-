@@ -19,7 +19,6 @@ export interface IPageEditorData {
 
 @Injectable()
 export class EditorService {
-  private inMemoryPages: Map<string, IPageEditorData> = new Map();
   private reusableBlocks: Map<string, any> = new Map();
 
   constructor(
@@ -31,54 +30,7 @@ export class EditorService {
   }
 
   private seedDefaultEditorPages() {
-    const defaultHomepageBlocks = [
-      {
-        id: 'block-hero-1',
-        type: 'HERO',
-        props: {
-          tagline: 'LEGAL RESEARCH, HUMAN RIGHTS & ACCESSIBILITY',
-          title: 'Advancing Disability Rights & Legal Capacity in Nepal',
-          subtitle: 'Official academic research portal, publications directory, literary archive, and policy consulting platform of Sandip Thapa.',
-          primaryCta: { label: 'Explore Publications', url: '/publications' },
-          secondaryCta: { label: 'Read Research Papers', url: '/research' },
-        },
-      },
-      {
-        id: 'block-intro-2',
-        type: 'TEXT_BLOCK',
-        props: {
-          heading: 'Short Introduction',
-          content: 'Sandip Thapa is a dedicated legal scholar, researcher, and human rights advocate based in Nepal. His work focuses on legal capacity, supported decision-making under the UN CRPD, inclusive policy formulation, and digital accessibility compliance.',
-        },
-      },
-      {
-        id: 'block-featured-3',
-        type: 'CARD_GRID',
-        props: {
-          heading: 'Featured Article',
-          items: [
-            {
-              title: 'Legal Capacity & Supported Decision-Making in Nepalese Jurisprudence',
-              summary: 'An analysis of Article 12 of the UN CRPD and its implementation in Nepalese courts.',
-              publishedBs: '2083 Shrawan 15',
-              publishedAd: '30 July 2026',
-              readingTime: 9,
-              wordCount: 2150,
-            },
-          ],
-        },
-      },
-    ];
-
-    this.inMemoryPages.set('page-home', {
-      id: 'page-home',
-      slug: 'home',
-      title: 'Home Page',
-      locale: 'en',
-      status: 'PUBLISHED',
-      version: 1,
-      blocks: defaultHomepageBlocks,
-    });
+    // No-op: all page data is sourced from the database
   }
 
   async getPageForEditor(idOrSlug: string): Promise<IPageEditorData> {
@@ -97,7 +49,7 @@ export class EditorService {
         const blocks = dbPage.region_blocks.map((rb) => ({
           id: rb.block.id,
           type: rb.block.name,
-          props: (rb.block.json_config as Record<string, any>) || {},
+          props: (typeof rb.block.json_config === 'string' ? JSON.parse(rb.block.json_config) : rb.block.json_config) || {},
         }));
         const wcag = this.validator.validateBlockArray(blocks);
         const exports = this.exporter.exportBlocks(blocks, dbPage.title);
@@ -110,23 +62,17 @@ export class EditorService {
           status: dbPage.status,
           version: dbPage.version,
           blocks,
-          seoMetadata: (dbPage.seo_metadata as Record<string, any>) || {},
+          seoMetadata: (typeof dbPage.seo_metadata === 'string' ? JSON.parse(dbPage.seo_metadata) : dbPage.seo_metadata) || {},
           wcagValidation: wcag,
           exports,
         };
       }
     } catch (err) {
-      // DB offline — fallback
+      console.error('Failed to get page from database', err);
+      throw err;
     }
 
-    const memPage = this.inMemoryPages.get(idOrSlug) || this.inMemoryPages.get(`page-${idOrSlug}`);
-    if (memPage) {
-      memPage.wcagValidation = this.validator.validateBlockArray(memPage.blocks);
-      memPage.exports = this.exporter.exportBlocks(memPage.blocks, memPage.title);
-      return memPage;
-    }
-
-    throw new NotFoundException(`Page '${idOrSlug}' not found in editor registry`);
+    throw new NotFoundException(`Page '${idOrSlug}' not found`);
   }
 
   async savePageBlocks(id: string, blocks: any[], title?: string, locale = 'en'): Promise<IPageEditorData> {
@@ -168,50 +114,53 @@ export class EditorService {
           wcagValidation: wcag,
           exports,
         };
+      } else {
+        // Create new page if not exists
+        const newPage = await this.prisma.page.create({
+          data: {
+            id,
+            tenant_id: 'default-tenant',
+            layout_id: 'default-layout',
+            slug: id.replace('page-', ''),
+            title: title || 'New Page',
+            locale: locale,
+            status: 'DRAFT',
+            version: 1,
+            seo_metadata: JSON.stringify({}),
+          }
+        });
+        
+        await this.prisma.pageVersion.create({
+          data: {
+            page_id: id,
+            version: 1,
+            layout_json: { blocks, wcag, exports } as any,
+          },
+        });
+
+        return {
+          id: newPage.id,
+          slug: newPage.slug,
+          title: newPage.title,
+          locale: newPage.locale,
+          status: newPage.status,
+          version: newPage.version,
+          blocks,
+          wcagValidation: wcag,
+          exports,
+        };
       }
     } catch (err) {
-      // DB offline — update in memory
+      console.error('Failed to save page to database', err);
+      throw err;
     }
-
-    let page = this.inMemoryPages.get(id);
-    if (!page) {
-      page = {
-        id,
-        slug: id.replace('page-', ''),
-        title: title || 'New Page',
-        locale,
-        status: 'DRAFT',
-        version: 1,
-        blocks: [],
-      };
-    }
-
-    page.blocks = blocks;
-    if (title) page.title = title;
-    page.locale = locale;
-    page.version += 1;
-    page.wcagValidation = wcag;
-    page.exports = exports;
-
-    this.inMemoryPages.set(id, page);
-    return page;
   }
 
   async autoSaveDraft(id: string, blocks: any[]): Promise<{ saved: boolean; timestamp: string; wcag: IWcagValidationResult }> {
-    const page = this.inMemoryPages.get(id) || {
-      id,
-      slug: id,
-      title: 'Draft',
-      locale: 'en',
-      status: 'DRAFT',
-      version: 1,
-      blocks: [],
-    };
-
-    page.blocks = blocks;
     const wcag = this.validator.validateBlockArray(blocks);
-    page.wcagValidation = wcag;
-    this.inMemoryPages.set(id, page);
+    
+    // Perform light save without bumping major version
+    await this.savePageBlocks(id, blocks);
 
     return {
       saved: true,
@@ -249,15 +198,16 @@ export class EditorService {
     return Array.from(this.reusableBlocks.values());
   }
 
-  listAllEditorPages() {
-    return Array.from(this.inMemoryPages.values()).map((p) => ({
+  async listAllEditorPages() {
+    const pages = await this.prisma.page.findMany();
+    return pages.map((p) => ({
       id: p.id,
       slug: p.slug,
       title: p.title,
       locale: p.locale,
       status: p.status,
       version: p.version,
-      blockCount: p.blocks.length,
+      blockCount: 0,
     }));
   }
 }

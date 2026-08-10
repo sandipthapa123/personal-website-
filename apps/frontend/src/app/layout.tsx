@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Noto_Sans, Noto_Sans_Devanagari, JetBrains_Mono } from 'next/font/google';
+import { Noto_Sans, Noto_Sans_Devanagari, JetBrains_Mono, Fraunces } from 'next/font/google';
 import './globals.css';
 import { ACCESSIBILITY_CONSTANTS } from '@cms/accessibility';
 import { AccessibilityToolbar } from '../components/accessibility/AccessibilityToolbar';
@@ -25,6 +25,13 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 });
 
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-fraunces',
+  display: 'swap',
+  axes: ['opsz', 'SOFT', 'WONK'],
+});
+
 export const metadata: Metadata = {
   title: 'Sandip Thapa | Academic Research, Law & Accessibility Platform',
   description: 'Enterprise Backend-Driven Personal Website & Knowledge Management System for Sandip Thapa',
@@ -38,8 +45,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${notoSans.variable} ${notoSansDevanagari.variable} ${jetbrainsMono.variable}`}>
-      <body className="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
+    <html lang="en" className={`${notoSans.variable} ${notoSansDevanagari.variable} ${jetbrainsMono.variable} ${fraunces.variable}`}>
+      <body className="bg-ink text-ink-100 min-h-screen flex flex-col justify-between font-sans antialiased">
         <DialogProvider>
           <div>
             <a

@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AnalyticsService } from './analytics.service';
 import { PolicyGuard } from '../permissions/policy.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { RequirePolicy } from '../permissions/policy.decorator';
 import { PERMISSION_ACTIONS } from '@cms/constants';
 
@@ -33,7 +34,7 @@ export class AnalyticsController {
   }
 
   @Get('summary')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.AUDIT_READ)
   @ApiOperation({ summary: 'Get privacy analytics metrics summary' })
   async getSummary(@Headers('x-tenant-id') tenantId: string) {

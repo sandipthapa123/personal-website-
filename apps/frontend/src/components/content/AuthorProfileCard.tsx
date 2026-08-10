@@ -23,30 +23,40 @@ export const AuthorProfileCard: React.FC<AuthorProfileCardProps> = ({
   linkedIn = 'https://linkedin.com/in/sandipthapa',
   website = 'https://thapasandip.com.np',
 }) => {
+  const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2);
+
   return (
-    <aside className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl my-8 flex flex-col sm:flex-row gap-5 items-start">
-      <div className="w-20 h-20 rounded-full bg-sky-600 text-white font-extrabold text-2xl flex items-center justify-center flex-shrink-0 shadow-md">
-        ST
-      </div>
+    <aside className="p-6 sm:p-7 bg-ink-elevated border border-ink-border rounded-2xl my-8 flex flex-col sm:flex-row gap-6 items-start shadow-lg shadow-black/20">
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={`Portrait of ${name}`}
+          className="w-24 h-24 rounded-2xl object-cover flex-shrink-0 border-2 border-gold/40 shadow-md"
+        />
+      ) : (
+        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-gold/80 to-gold text-ink font-serif-display font-bold text-3xl flex items-center justify-center flex-shrink-0 shadow-md">
+          {initials}
+        </div>
+      )}
       <div className="space-y-3 flex-grow text-sm">
         <div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{name}</h3>
-          <p className="text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400 mt-0.5">{position}</p>
+          <h3 className="font-serif-display text-xl font-semibold text-ink-100 leading-tight">{name}</h3>
+          <p className="text-xs font-semibold uppercase tracking-wider text-gold mt-0.5">{position}</p>
         </div>
-        <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{bio}</p>
+        <p className="text-ink-400 leading-relaxed">{bio}</p>
         <div className="flex flex-wrap gap-2 pt-1 text-xs">
           {orcid && (
-            <a href={`https://orcid.org/${orcid}`} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-md font-semibold">
+            <a href={`https://orcid.org/${orcid}`} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 bg-emerald-950/60 text-emerald-300 border border-emerald-800/40 rounded-md font-semibold hover:border-emerald-600 transition-colors">
               ORCID: {orcid}
             </a>
           )}
           {googleScholar && (
-            <a href={googleScholar} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 rounded-md font-semibold">
+            <a href={googleScholar} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 bg-ink text-ink-100 border border-ink-border rounded-md font-semibold hover:border-gold/50 hover:text-gold transition-colors">
               Google Scholar
             </a>
           )}
           {linkedIn && (
-            <a href={linkedIn} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 rounded-md font-semibold">
+            <a href={linkedIn} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 bg-ink text-ink-100 border border-ink-border rounded-md font-semibold hover:border-gold/50 hover:text-gold transition-colors">
               LinkedIn
             </a>
           )}

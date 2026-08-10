@@ -3,31 +3,123 @@
 @tailwind utilities;
 
 :root {
-  --color-primary-500: #0f172a;
-  --color-surface: #ffffff;
-  --color-text: #1e293b;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-}
+  /* Editorial ink & brass palette — channel triples so Tailwind's /opacity modifiers work */
+  --color-ink-rgb: 10 11 15;
+  --color-ink-elevated-rgb: 19 21 27;
+  --color-ink-border-rgb: 36 39 47;
+  --color-gold-rgb: 201 162 77;
+  --color-accent-blue-rgb: 111 155 216;
+  --color-parchment: #f4ede0;
+  --color-text-primary: #f2ede3;
+  --color-text-secondary: #a39c8e;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-primary-500: #f8fafc;
-    --color-surface: #0f172a;
-    --color-text: #f1f5f9;
-  }
+  /* Back-compat tokens consumed by tailwind.config.ts (kept dark for a single cohesive theme) */
+  --color-primary-500: rgb(var(--color-gold-rgb));
+  --color-surface: rgb(var(--color-ink-rgb));
+  --color-text: var(--color-text-primary);
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
 }
 
 body {
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: rgb(var(--color-ink-rgb));
+  color: var(--color-text-primary);
+  font-family: var(--font-noto-sans), var(--font-noto-devanagari), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   margin: 0;
   padding: 0;
 }
 
+.font-serif-display {
+  font-family: var(--font-fraunces), 'Georgia', serif;
+  font-optical-sizing: auto;
+}
+
+.font-mono-editorial {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+/* Subtle editorial grain + radial glow, used behind hero/feature sections */
+.bg-editorial-canvas {
+  background-image:
+    radial-gradient(ellipse 60% 50% at 15% 0%, rgb(var(--color-gold-rgb) / 0.15), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 20%, rgb(var(--color-accent-blue-rgb) / 0.1), transparent 55%);
+}
+
 /* WCAG AAA Focus Ring Style */
 *:focus-visible {
-  outline: 3px solid #0284c7;
+  outline: 3px solid rgb(var(--color-gold-rgb));
   outline-offset: 2px;
+}
+
+/* Hand-rolled prose styling for CMS rich text (no typography plugin installed) */
+.prose {
+  color: var(--color-text-secondary);
+  line-height: 1.75;
+}
+.prose > :first-child { margin-top: 0; }
+.prose > :last-child { margin-bottom: 0; }
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  font-family: var(--font-fraunces), Georgia, serif;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 2em;
+  margin-bottom: 0.75em;
+}
+.prose h1 { font-size: 2em; }
+.prose h2 { font-size: 1.6em; }
+.prose h3 { font-size: 1.3em; }
+.prose h4 { font-size: 1.1em; }
+.prose p { margin-top: 1.1em; margin-bottom: 1.1em; }
+.prose a { color: rgb(var(--color-gold-rgb)); text-decoration: underline; text-underline-offset: 2px; }
+.prose a:hover { filter: brightness(1.15); }
+.prose strong { color: var(--color-text-primary); font-weight: 700; }
+.prose ul, .prose ol { margin-top: 1.1em; margin-bottom: 1.1em; padding-left: 1.5em; }
+.prose ul { list-style-type: disc; }
+.prose ol { list-style-type: decimal; }
+.prose li { margin-top: 0.4em; margin-bottom: 0.4em; }
+.prose blockquote {
+  border-left: 3px solid rgb(var(--color-gold-rgb));
+  padding-left: 1.25em;
+  font-style: italic;
+  color: var(--color-text-primary);
+  margin: 1.5em 0;
+}
+.prose code {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  background: rgb(var(--color-ink-elevated-rgb));
+  border: 1px solid rgb(var(--color-ink-border-rgb));
+  border-radius: 0.35em;
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+}
+.prose pre {
+  background: rgb(var(--color-ink-rgb));
+  border: 1px solid rgb(var(--color-ink-border-rgb));
+  border-radius: var(--radius-lg);
+  padding: 1em;
+  overflow-x: auto;
+}
+.prose pre code { background: none; border: none; padding: 0; }
+.prose img { border-radius: var(--radius-lg); border: 1px solid rgb(var(--color-ink-border-rgb)); }
+.prose hr { border-color: rgb(var(--color-ink-border-rgb)); margin: 2.5em 0; }
+.prose table { width: 100%; border-collapse: collapse; }
+.prose th, .prose td { border: 1px solid rgb(var(--color-ink-border-rgb)); padding: 0.5em 0.75em; }
+.prose th { color: var(--color-text-primary); text-align: left; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .animate-fade-up {
+    animation: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

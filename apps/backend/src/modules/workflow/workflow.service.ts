@@ -46,7 +46,7 @@ export class WorkflowService {
         action: `workflow:transition:${targetStatus}`,
         entity_type: 'Page',
         entity_id: pageId,
-        payload: { from: currentStatus, to: targetStatus },
+        payload: JSON.stringify({ from: currentStatus, to: targetStatus }),
       },
     });
 

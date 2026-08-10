@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { EditorService } from './editor.service';
 import { EditorValidationService } from './editor-validation.service';
 import { PolicyGuard } from '../permissions/policy.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { RequirePolicy } from '../permissions/policy.decorator';
 import { PERMISSION_ACTIONS } from '@cms/constants';
 
@@ -17,7 +18,7 @@ export class EditorController {
   @Get('pages')
   @ApiOperation({ summary: 'List all editable pages with block counts and status' })
   async listPages() {
-    const pages = this.editorService.listAllEditorPages();
+    const pages = await this.editorService.listAllEditorPages();
     return {
       success: true,
       data: pages,
@@ -37,7 +38,7 @@ export class EditorController {
   }
 
   @Put('pages/:id/blocks')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_EDIT)
   @ApiOperation({ summary: 'Save full Editor.js block array for a page (schema validated + versioned)' })
   async savePageBlocks(
@@ -114,7 +115,7 @@ export class EditorController {
   }
 
   @Post('blocks/reusable')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.BLOCKS_MANAGE)
   @ApiOperation({ summary: 'Save a block schema as a global reusable block' })
   async saveReusableBlock(@Body() body: { name: string; blockData: any }) {

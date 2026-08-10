@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { PluginService, IPluginManifest } from './plugin.service';
 import { PolicyGuard } from '../permissions/policy.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { RequirePolicy } from '../permissions/policy.decorator';
 import { PERMISSION_ACTIONS } from '@cms/constants';
 
@@ -11,7 +12,7 @@ export class PluginController {
   constructor(private pluginService: PluginService) {}
 
   @Get()
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Get list of installed plugins' })
   async getInstalledPlugins() {
@@ -28,7 +29,7 @@ export class PluginController {
   }
 
   @Post('register')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Register new plugin manifest' })
   async registerPlugin(@Body() manifest: IPluginManifest) {
@@ -45,7 +46,7 @@ export class PluginController {
   }
 
   @Post(':name/toggle')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Activate or deactivate plugin' })
   async togglePlugin(@Param('name') name: string, @Body() body: { isActive: boolean }) {

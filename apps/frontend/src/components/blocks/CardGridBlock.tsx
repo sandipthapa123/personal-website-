@@ -39,29 +39,29 @@ export const CardGridBlock: React.FC<CardGridProps> = ({ heading, description, i
     <section className="space-y-6">
       {heading && (
         <div className="space-y-2">
-          <h2 className="text-2xl font-extrabold text-white tracking-tight">{heading}</h2>
-          {description && <p className="text-sm text-slate-400">{description}</p>}
+          <h2 className="font-serif-display text-2xl sm:text-3xl font-semibold text-ink-100 tracking-tight">{heading}</h2>
+          {description && <p className="text-sm text-ink-400">{description}</p>}
         </div>
       )}
       <div className={`grid ${colClass} gap-4`}>
         {items.map((item, idx) => (
           <article
             key={idx}
-            className="group p-5 bg-slate-900 border border-slate-800 rounded-xl space-y-3 hover:border-sky-800/50 hover:bg-slate-900/80 transition-all duration-200 cursor-pointer"
+            className="group p-5 bg-ink-elevated border border-ink-border rounded-2xl space-y-3 hover:border-gold/40 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 transition-all duration-200 cursor-pointer"
           >
             {/* Type / Collection Badge */}
             {(item.type || item.collection || item.role) && (
-              <span className="inline-block px-2.5 py-0.5 bg-sky-500/15 text-sky-300 text-[10px] font-bold uppercase tracking-wider rounded">
+              <span className="inline-block px-2.5 py-0.5 bg-gold/10 text-gold text-[10px] font-bold uppercase tracking-wider rounded">
                 {item.type || item.collection || item.role}
               </span>
             )}
 
-            <h3 className="font-bold text-slate-100 group-hover:text-sky-300 transition-colors text-sm leading-snug">
+            <h3 className="font-semibold text-ink-100 group-hover:text-gold transition-colors text-sm leading-snug">
               {item.url ? (
-                <a 
-                  href={item.url} 
+                <a
+                  href={item.url}
                   aria-label={`Read more about ${item.title || item.name}`}
-                  className="focus:outline-none focus:ring-2 focus:ring-sky-500 rounded"
+                  className="focus:outline-none focus:ring-2 focus:ring-gold rounded"
                 >
                   {item.title || item.name}
                 </a>
@@ -71,19 +71,19 @@ export const CardGridBlock: React.FC<CardGridProps> = ({ heading, description, i
             </h3>
 
             {(item.summary || item.description) && (
-              <p className="text-xs text-slate-400 leading-relaxed line-clamp-3">
+              <p className="text-xs text-ink-400 leading-relaxed line-clamp-3">
                 {item.summary || item.description}
               </p>
             )}
 
             {item.quote && (
-              <blockquote className="text-xs italic text-slate-300 border-l-2 border-sky-600 pl-3 leading-relaxed">
-                "{item.quote}"
+              <blockquote className="text-xs italic text-ink-100/90 border-l-2 border-gold pl-3 leading-relaxed">
+                &ldquo;{item.quote}&rdquo;
               </blockquote>
             )}
 
             {item.citationApa && (
-              <div className="p-2.5 bg-slate-950 rounded-lg text-[10px] font-mono text-slate-500 border border-slate-800 leading-relaxed">
+              <div className="p-2.5 bg-ink rounded-lg text-[10px] font-mono text-ink-400 border border-ink-border leading-relaxed">
                 APA: {item.citationApa}
               </div>
             )}
@@ -91,37 +91,37 @@ export const CardGridBlock: React.FC<CardGridProps> = ({ heading, description, i
             {/* Meta row */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1">
               {item.publishedBs && (
-                <span className="text-[10px] text-sky-500 font-semibold">
+                <span className="text-[10px] text-gold font-semibold">
                   {item.publishedBs}
                 </span>
               )}
               {item.publishedAd && (
-                <span className="text-[10px] text-slate-500">
+                <span className="text-[10px] text-ink-400">
                   {item.publishedAd}
                 </span>
               )}
               {item.readingTime && (
-                <span className="text-[10px] text-slate-500">
+                <span className="text-[10px] text-ink-400">
                   {item.readingTime} min read
                 </span>
               )}
               {item.views && (
-                <span className="text-[10px] text-slate-600">
-                  {item.views.toLocaleString()} views
+                <span className="text-[10px] text-ink-400/70">
+                  {item.views.toLocaleString('en-US')} views
                 </span>
               )}
               {item.timeline && (
-                <span className="text-[10px] text-sky-400 font-medium">
+                <span className="text-[10px] text-gold font-medium">
                   {item.timeline}
                 </span>
               )}
               {item.location && (
-                <span className="text-[10px] text-slate-500">
+                <span className="text-[10px] text-ink-400">
                   📍 {item.location}
                 </span>
               )}
               {item.date && (
-                <span className="text-[10px] text-slate-500">
+                <span className="text-[10px] text-ink-400">
                   🗓 {item.date}
                 </span>
               )}

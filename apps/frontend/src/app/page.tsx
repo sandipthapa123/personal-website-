@@ -2,19 +2,19 @@ import React from 'react';
 import type { Metadata } from 'next';
 import { DynamicPageRenderer } from '../components/renderer/DynamicPageRenderer';
 
-async function getBackendRenderSchema() {
+import { cache } from 'react';
+
+const getBackendRenderSchema = cache(async () => {
   try {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000/api/v1';
-    const res = await fetch(`${apiBase}/renderer/page?slug=/`, {
-      cache: 'no-store',
-    });
+    const res = await fetch(`${apiBase}/renderer/page?slug=/`);
     if (!res.ok) return null;
     const json = await res.json();
     return json.data || json;
   } catch (err) {
     return null;
   }
-}
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const schema = await getBackendRenderSchema();

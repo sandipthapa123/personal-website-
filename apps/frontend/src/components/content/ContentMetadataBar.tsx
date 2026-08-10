@@ -40,7 +40,7 @@ export const ContentMetadataBar: React.FC<ContentMetadataBarProps> = ({
         <div>
           <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">Engagement</span>
           <span className="font-medium text-slate-900 dark:text-white">
-            👁️ {viewCount.toLocaleString()} views · 👤 {uniqueVisitorsCount.toLocaleString()} unique
+            👁️ {viewCount.toLocaleString('en-US')} views · 👤 {uniqueVisitorsCount.toLocaleString('en-US')} unique
           </span>
         </div>
       </div>

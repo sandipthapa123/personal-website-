@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Query, Res, Req, HttpStatus, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Res, Req, HttpStatus, Param, HttpException, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { PrismaService } from '../../database/prisma.service';
@@ -6,6 +7,7 @@ import { AdminService, IDashboardWidget } from './admin.service';
 import { formatDualCalendarDate } from '@cms/utilities';
 import { UniversalContentService } from '../content/universal-content.service';
 import { TenantConfigService } from '../config/tenant-config.service';
+import { AuthService } from '../auth/auth.service';
 
 @ApiTags('Admin Console')
 @Controller()
@@ -15,14 +17,30 @@ export class AdminController {
     private adminService: AdminService,
     private contentService: UniversalContentService,
     private configService: TenantConfigService,
+    private authService: AuthService,
   ) {}
+
+  /** Verifies the admin session cookie against a real, server-signed JWT AND an un-revoked, tracked session. */
+  private async isAdminAuthenticated(req: Request): Promise<boolean> {
+    const token = req.cookies?.access_token;
+    return !!token && !!(await this.authService.verifyAdminSession(token));
+  }
+
+  private setAdminSessionCookie(res: Response, token: string) {
+    res.cookie('access_token', token, {
+      maxAge: 86400000,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+  }
 
   @Get('admin')
   @Get('admin/')
   @ApiOperation({ summary: 'Auto-redirect /admin to /admin/login or /admin/dashboard' })
-  redirectToLogin(@Req() req: Request, @Res() res: Response) {
-    const cookie = req.headers.cookie || '';
-    if (cookie.includes('admin_logged_in=true')) {
+  async redirectToLogin(@Req() req: Request, @Res() res: Response) {
+    if (await this.isAdminAuthenticated(req)) {
       return res.redirect('/admin/dashboard');
     }
     return res.redirect('/admin/login');
@@ -30,26 +48,36 @@ export class AdminController {
 
   @Get('admin/login')
   @ApiOperation({ summary: 'Admin Login Page' })
-  getLoginPage(@Req() req: Request, @Res() res: Response) {
-    const cookie = req.headers.cookie || '';
-    if (cookie.includes('admin_logged_in=true')) return res.redirect('/admin/dashboard');
+  async getLoginPage(@Req() req: Request, @Res() res: Response) {
+    if (await this.isAdminAuthenticated(req)) return res.redirect('/admin/dashboard');
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Admin Login | Sandip Thapa</title>
-<style>*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif;}body{background:#020617;color:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;}.login-box{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:36px 40px;width:100%;max-width:380px;}h1{font-size:22px;font-weight:900;color:#fff;margin-bottom:6px;}p{font-size:12px;color:#64748b;margin-bottom:24px;}.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}label{font-size:10px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:.5px;}input{background:#020617;border:1px solid #1e293b;border-radius:7px;color:#fff;padding:10px 12px;font-size:13px;outline:none;width:100%;}input:focus{border-color:#0284c7;}button{width:100%;background:#0284c7;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-top:6px;}button:hover{background:#0369a1;}.err{background:rgba(127,29,29,.85);color:#fca5a5;border:1px solid #7f1d1d;padding:10px 14px;border-radius:7px;font-size:12px;font-weight:700;margin-bottom:12px;display:none;}</style>
+<style>*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif;}body{background:#020617;color:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;}.login-box{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:36px 40px;width:100%;max-width:380px;}h1{font-size:22px;font-weight:900;color:#fff;margin-bottom:6px;}p{font-size:12px;color:#64748b;margin-bottom:24px;}.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}label{font-size:10px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:.5px;}input{background:#020617;border:1px solid #1e293b;border-radius:7px;color:#fff;padding:10px 12px;font-size:13px;outline:none;width:100%;}input:focus{border-color:#0284c7;}button{width:100%;background:#0284c7;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-top:6px;}button:hover{background:#0369a1;}.err{background:rgba(127,29,29,.85);color:#fca5a5;border:1px solid #7f1d1d;padding:10px 14px;border-radius:7px;font-size:12px;font-weight:700;margin-bottom:12px;display:none;}.fp{display:block;text-align:right;font-size:11px;color:#38bdf8;text-decoration:none;margin-top:-6px;margin-bottom:14px;}.fp:hover{text-decoration:underline;}.help{font-size:11px;color:#64748b;margin-bottom:14px;line-height:1.5;}</style>
 </head>
 <body>
 <div class="login-box" role="main">
   <h1>⚡ Admin Console</h1>
   <p>Sandip Thapa Enterprise CMS Platform</p>
   <div id="err" class="err" role="alert"></div>
+
   <form id="lf" onsubmit="doLogin(event)">
     <div class="fg"><label for="u">Email</label><input type="email" id="u" required placeholder="admin@thapasandip.com.np" autocomplete="username" /></div>
     <div class="fg"><label for="p">Password</label><input type="password" id="p" required placeholder="••••••••" autocomplete="current-password" /></div>
+    <a class="fp" href="/admin/forgot-password">Forgot password?</a>
     <button type="submit" id="sb">Sign In →</button>
   </form>
+
+  <form id="lf2" onsubmit="doVerify2fa(event)" style="display:none;">
+    <p class="help">Enter the 6-digit code from your authenticator app, or one of your recovery codes.</p>
+    <div class="fg"><label for="code">Authentication Code</label><input type="text" id="code" required autocomplete="one-time-code" inputmode="numeric" placeholder="123456" /></div>
+    <button type="submit" id="sb2">Verify →</button>
+  </form>
+
   <script>
-    function doLogin(e){e.preventDefault();var u=document.getElementById('u').value,p=document.getElementById('p').value,sb=document.getElementById('sb'),err=document.getElementById('err');sb.textContent='Signing in...';sb.disabled=true;err.style.display='none';fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:u,password:p})}).then(r=>r.json()).then(d=>{if(d.success){document.cookie='admin_logged_in=true; path=/; max-age=86400';localStorage.setItem('admin_logged_in','true');window.location.href='/admin/dashboard';}else{err.textContent=d.message||'Invalid credentials';err.style.display='block';sb.textContent='Sign In →';sb.disabled=false;}}).catch(()=>{err.textContent='Network error. Try again.';err.style.display='block';sb.textContent='Sign In →';sb.disabled=false;});}
+    var challengeToken = null;
+    function doLogin(e){e.preventDefault();var u=document.getElementById('u').value,p=document.getElementById('p').value,sb=document.getElementById('sb'),err=document.getElementById('err');sb.textContent='Signing in...';sb.disabled=true;err.style.display='none';fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:u,password:p})}).then(r=>r.json()).then(d=>{if(d.mfaRequired){challengeToken=d.challengeToken;document.getElementById('lf').style.display='none';document.getElementById('lf2').style.display='block';document.getElementById('code').focus();}else if(d.success){window.location.href='/admin/dashboard';}else{err.textContent=d.message||'Invalid credentials';err.style.display='block';sb.textContent='Sign In →';sb.disabled=false;}}).catch(()=>{err.textContent='Network error. Try again.';err.style.display='block';sb.textContent='Sign In →';sb.disabled=false;});}
+    function doVerify2fa(e){e.preventDefault();var code=document.getElementById('code').value,sb=document.getElementById('sb2'),err=document.getElementById('err');sb.textContent='Verifying...';sb.disabled=true;err.style.display='none';fetch('/admin/login/2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({challengeToken:challengeToken,code:code})}).then(r=>r.json()).then(d=>{if(d.success){window.location.href='/admin/dashboard';}else{err.textContent=d.message||'Invalid code';err.style.display='block';sb.textContent='Verify →';sb.disabled=false;}}).catch(()=>{err.textContent='Network error. Try again.';err.style.display='block';sb.textContent='Verify →';sb.disabled=false;});}
   <\/script>
 </div>
 </body>
@@ -58,22 +86,134 @@ export class AdminController {
   }
 
   @Post('admin/login')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @ApiOperation({ summary: 'Admin Login Action' })
-  async doLogin(@Body() body: { email: string; password: string }, @Res() res: Response) {
-    const valid =
-      (body.email === 'lafasandip15@gmail.com' || body.email === 'admin') &&
-      body.password === 'admin123';
-    if (valid) {
-      res.cookie('admin_logged_in', 'true', { maxAge: 86400000, httpOnly: false, path: '/' });
+  async doLogin(@Body() body: { email: string; password: string }, @Req() req: Request, @Res() res: Response) {
+    try {
+      const user = await this.authService.validateUser(body.email, body.password);
+      const result = await this.authService.completeAdminLogin(user, req);
+      if ('mfaRequired' in result) {
+        return res.status(HttpStatus.OK).json({ success: true, mfaRequired: true, challengeToken: result.challengeToken });
+      }
+      this.setAdminSessionCookie(res, result.accessToken);
       return res.status(HttpStatus.OK).json({ success: true, message: 'Login successful' });
+    } catch (err) {
+      const status = err instanceof HttpException ? err.getStatus() : HttpStatus.UNAUTHORIZED;
+      const message = err instanceof HttpException && status === HttpStatus.FORBIDDEN ? err.message : 'Invalid credentials';
+      return res.status(status).json({ success: false, message });
     }
-    return res.status(HttpStatus.UNAUTHORIZED).json({ success: false, message: 'Invalid credentials' });
+  }
+
+  @Post('admin/login/2fa')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @ApiOperation({ summary: 'Complete admin login with a 2FA code following a login challenge' })
+  async doLogin2fa(@Body() body: { challengeToken: string; code: string }, @Req() req: Request, @Res() res: Response) {
+    try {
+      const result = await this.authService.completeAdminLoginFromChallenge(body.challengeToken, body.code, req);
+      this.setAdminSessionCookie(res, result.accessToken);
+      return res.status(HttpStatus.OK).json({ success: true, message: 'Login successful' });
+    } catch (err: any) {
+      return res.status(HttpStatus.UNAUTHORIZED).json({ success: false, message: err?.message || 'Invalid code' });
+    }
+  }
+
+  @Get('admin/forgot-password')
+  @ApiOperation({ summary: 'Forgot Password Page' })
+  getForgotPasswordPage(@Res() res: Response) {
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Forgot Password | Sandip Thapa</title>
+<style>*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif;}body{background:#020617;color:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;}.box{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:36px 40px;width:100%;max-width:380px;}h1{font-size:20px;font-weight:900;color:#fff;margin-bottom:6px;}p{font-size:12px;color:#64748b;margin-bottom:20px;line-height:1.5;}.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}label{font-size:10px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:.5px;}input{background:#020617;border:1px solid #1e293b;border-radius:7px;color:#fff;padding:10px 12px;font-size:13px;outline:none;width:100%;}input:focus{border-color:#0284c7;}button{width:100%;background:#0284c7;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-top:6px;}button:hover{background:#0369a1;}.msg{background:rgba(6,78,59,.5);color:#6ee7b7;border:1px solid #065f46;padding:10px 14px;border-radius:7px;font-size:12px;font-weight:600;margin-bottom:12px;display:none;line-height:1.5;}a{color:#38bdf8;font-size:12px;text-decoration:none;}a:hover{text-decoration:underline;}</style>
+</head>
+<body>
+<div class="box" role="main">
+  <h1>Forgot Password</h1>
+  <p>Enter your account email. If it exists, we'll send a password reset link.</p>
+  <div id="msg" class="msg" role="status"></div>
+  <form id="ff" onsubmit="doForgot(event)">
+    <div class="fg"><label for="e">Email</label><input type="email" id="e" required autocomplete="username" /></div>
+    <button type="submit" id="sb">Send Reset Link →</button>
+  </form>
+  <p style="margin-top:16px;"><a href="/admin/login">← Back to Sign In</a></p>
+  <script>
+    function doForgot(e){e.preventDefault();var email=document.getElementById('e').value,sb=document.getElementById('sb'),msg=document.getElementById('msg');sb.textContent='Sending...';sb.disabled=true;fetch('/api/v1/auth/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})}).then(r=>r.json()).then(d=>{msg.textContent=d.message||'If an account exists with this email, a reset link has been sent.';msg.style.display='block';document.getElementById('ff').style.display='none';}).catch(()=>{msg.textContent='If an account exists with this email, a reset link has been sent.';msg.style.display='block';document.getElementById('ff').style.display='none';});}
+  <\/script>
+</div>
+</body>
+</html>`;
+    return res.status(HttpStatus.OK).send(html);
+  }
+
+  @Get('admin/reset-password')
+  @ApiOperation({ summary: 'Reset Password Page' })
+  getResetPasswordPage(@Query('token') token: string, @Res() res: Response) {
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Reset Password | Sandip Thapa</title>
+<style>*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif;}body{background:#020617;color:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;}.box{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:36px 40px;width:100%;max-width:380px;}h1{font-size:20px;font-weight:900;color:#fff;margin-bottom:6px;}p{font-size:12px;color:#64748b;margin-bottom:20px;line-height:1.5;}.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}label{font-size:10px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:.5px;}input{background:#020617;border:1px solid #1e293b;border-radius:7px;color:#fff;padding:10px 12px;font-size:13px;outline:none;width:100%;}input:focus{border-color:#0284c7;}button{width:100%;background:#0284c7;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-top:6px;}button:hover{background:#0369a1;}.err{background:rgba(127,29,29,.85);color:#fca5a5;border:1px solid #7f1d1d;padding:10px 14px;border-radius:7px;font-size:12px;font-weight:700;margin-bottom:12px;display:none;}.msg{background:rgba(6,78,59,.5);color:#6ee7b7;border:1px solid #065f46;padding:10px 14px;border-radius:7px;font-size:12px;font-weight:600;margin-bottom:12px;display:none;line-height:1.5;}a{color:#38bdf8;font-size:12px;text-decoration:none;}.hint{font-size:10px;color:#475569;margin-top:4px;}</style>
+</head>
+<body>
+<div class="box" role="main">
+  <h1>Reset Password</h1>
+  <p>Choose a new password for your account.</p>
+  <div id="err" class="err" role="alert"></div>
+  <div id="msg" class="msg" role="status"></div>
+  <form id="rf" onsubmit="doReset(event)">
+    <div class="fg"><label for="p1">New Password</label><input type="password" id="p1" required autocomplete="new-password" minlength="10" /><div class="hint">At least 10 characters, with upper &amp; lower case, a number, and a symbol.</div></div>
+    <div class="fg"><label for="p2">Confirm Password</label><input type="password" id="p2" required autocomplete="new-password" /></div>
+    <button type="submit" id="sb">Reset Password →</button>
+  </form>
+  <p style="margin-top:16px;"><a href="/admin/login">← Back to Sign In</a></p>
+  <script>
+    var token = ${JSON.stringify(token || '')};
+    function doReset(e){e.preventDefault();var p1=document.getElementById('p1').value,p2=document.getElementById('p2').value,sb=document.getElementById('sb'),err=document.getElementById('err');err.style.display='none';if(p1!==p2){err.textContent='Passwords do not match.';err.style.display='block';return;}sb.textContent='Resetting...';sb.disabled=true;fetch('/api/v1/auth/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:token,newPassword:p1})}).then(r=>r.json().then(function(d){return {ok:r.ok,d:d};})).then(function(res){if(res.ok){document.getElementById('msg').textContent=res.d.message||'Password reset. You can now sign in.';document.getElementById('msg').style.display='block';document.getElementById('rf').style.display='none';}else{err.textContent=res.d.message||'This link is invalid or has expired.';err.style.display='block';sb.textContent='Reset Password →';sb.disabled=false;}}).catch(function(){err.textContent='Network error. Try again.';err.style.display='block';sb.textContent='Reset Password →';sb.disabled=false;});}
+  <\/script>
+</div>
+</body>
+</html>`;
+    return res.status(HttpStatus.OK).send(html);
+  }
+
+  @Get('admin/accept-invite')
+  @ApiOperation({ summary: 'Accept Invite Page — set initial password for an invited user' })
+  getAcceptInvitePage(@Query('token') token: string, @Res() res: Response) {
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Accept Invite | Sandip Thapa</title>
+<style>*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,sans-serif;}body{background:#020617;color:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;}.box{background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:36px 40px;width:100%;max-width:380px;}h1{font-size:20px;font-weight:900;color:#fff;margin-bottom:6px;}p{font-size:12px;color:#64748b;margin-bottom:20px;line-height:1.5;}.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}label{font-size:10px;font-weight:800;text-transform:uppercase;color:#64748b;letter-spacing:.5px;}input{background:#020617;border:1px solid #1e293b;border-radius:7px;color:#fff;padding:10px 12px;font-size:13px;outline:none;width:100%;}input:focus{border-color:#0284c7;}button{width:100%;background:#0284c7;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;margin-top:6px;}button:hover{background:#0369a1;}.err{background:rgba(127,29,29,.85);color:#fca5a5;border:1px solid #7f1d1d;padding:10px 14px;border-radius:7px;font-size:12px;font-weight:700;margin-bottom:12px;display:none;}.msg{background:rgba(6,78,59,.5);color:#6ee7b7;border:1px solid #065f46;padding:10px 14px;border-radius:7px;font-size:12px;font-weight:600;margin-bottom:12px;display:none;line-height:1.5;}a{color:#38bdf8;font-size:12px;text-decoration:none;}.hint{font-size:10px;color:#475569;margin-top:4px;}</style>
+</head>
+<body>
+<div class="box" role="main">
+  <h1>Welcome — Set Your Password</h1>
+  <p>Create a password to activate your account.</p>
+  <div id="err" class="err" role="alert"></div>
+  <div id="msg" class="msg" role="status"></div>
+  <form id="af" onsubmit="doAccept(event)">
+    <div class="fg"><label for="p1">Password</label><input type="password" id="p1" required autocomplete="new-password" minlength="10" /><div class="hint">At least 10 characters, with upper &amp; lower case, a number, and a symbol.</div></div>
+    <div class="fg"><label for="p2">Confirm Password</label><input type="password" id="p2" required autocomplete="new-password" /></div>
+    <button type="submit" id="sb">Activate Account →</button>
+  </form>
+  <script>
+    var token = ${JSON.stringify(token || '')};
+    function doAccept(e){e.preventDefault();var p1=document.getElementById('p1').value,p2=document.getElementById('p2').value,sb=document.getElementById('sb'),err=document.getElementById('err');err.style.display='none';if(p1!==p2){err.textContent='Passwords do not match.';err.style.display='block';return;}sb.textContent='Activating...';sb.disabled=true;fetch('/api/v1/users/accept-invite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:token,password:p1})}).then(r=>r.json().then(function(d){return {ok:r.ok,d:d};})).then(function(res){if(res.ok){document.getElementById('msg').textContent='Account activated. Redirecting to sign in...';document.getElementById('msg').style.display='block';document.getElementById('af').style.display='none';setTimeout(function(){window.location.href='/admin/login';},1800);}else{err.textContent=res.d.message||'This invite link is invalid or has expired.';err.style.display='block';sb.textContent='Activate Account →';sb.disabled=false;}}).catch(function(){err.textContent='Network error. Try again.';err.style.display='block';sb.textContent='Activate Account →';sb.disabled=false;});}
+  <\/script>
+</div>
+</body>
+</html>`;
+    return res.status(HttpStatus.OK).send(html);
   }
 
   @Get('admin/logout')
   @ApiOperation({ summary: 'Admin Logout' })
-  adminLogout(@Res() res: Response) {
-    res.clearCookie('admin_logged_in', { path: '/' });
+  async adminLogout(@Req() req: Request, @Res() res: Response) {
+    const token = req.cookies?.access_token;
+    if (token) {
+      const session = await this.authService.verifySessionToken(token);
+      if (session) await this.authService.revokeSessionById(session.userId, session.sessionId);
+    }
+    res.clearCookie('access_token', { path: '/' });
     return res.redirect('/admin/login');
   }
 
@@ -249,6 +389,22 @@ export class AdminController {
       ],
     };
     return this.renderAdminPage(req, res, 'settings', 'ALL', {}, meta);
+  }
+
+  @Get('admin/account')
+  @ApiOperation({ summary: 'Account Settings — profile, password, 2FA, sessions' })
+  getAdminAccount(@Req() req: Request, @Res() res: Response) {
+    const meta = {
+      title: 'Account Settings | Admin Console',
+      heading: 'Account Settings',
+      subtitle: 'Your profile, password, two-factor authentication, and sessions',
+      icon: '👤',
+      breadcrumbs: [
+        { label: 'Dashboard', url: '/admin/dashboard' },
+        { label: 'Account', url: '/admin/account' },
+      ],
+    };
+    return this.renderAdminPage(req, res, 'account', 'ALL', {}, meta);
   }
 
   @Get('admin/articles')
@@ -560,7 +716,7 @@ export class AdminController {
   }
 
 
-  private renderAdminPage(
+  private async renderAdminPage(
     req: Request,
     res: Response,
     activeTab: string,
@@ -574,10 +730,10 @@ export class AdminController {
       breadcrumbs: [{ label: 'Admin', url: '/admin/dashboard' }]
     }
   ) {
-    const cookie = req.headers.cookie || '';
-    if (!cookie.includes('admin_logged_in=true')) {
+    if (!(await this.isAdminAuthenticated(req))) {
       return res.redirect('/admin/login');
     }
+    res.setHeader('Cache-Control', 'no-store, must-revalidate');
 
     const breadcrumbHtml = meta.breadcrumbs
       .map((b, i) =>
@@ -599,14 +755,6 @@ export class AdminController {
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <meta name="description" content="${this.escHtml(meta.subtitle)}" />
   <title>${this.escHtml(meta.title)}</title>
-  <script>
-    (function() {
-      var cookieAuth = document.cookie.indexOf('admin_logged_in=true') !== -1;
-      var localAuth = localStorage.getItem('admin_logged_in') === 'true';
-      var sessionAuth = sessionStorage.getItem('cms_token');
-      if (!cookieAuth && !localAuth && !sessionAuth) { window.location.href = '/admin/login'; }
-    })();
-  <\/script>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,sans-serif;}
     body{background:#020617;color:#f8fafc;min-height:100vh;}
@@ -783,6 +931,7 @@ export class AdminController {
     <a href="/admin/seo" class="nav-btn ${activeTab === 'seo' ? 'active' : ''}" aria-current="${activeTab === 'seo' ? 'page' : 'false'}">SEO</a>
     <a href="/admin/system" class="nav-btn ${activeTab === 'system' ? 'active' : ''}" aria-current="${activeTab === 'system' ? 'page' : 'false'}">System</a>
     <a href="/admin/settings" class="nav-btn ${activeTab === 'settings' ? 'active' : ''}" aria-current="${activeTab === 'settings' ? 'page' : 'false'}">Settings</a>
+    <a href="/admin/account" class="nav-btn ${activeTab === 'account' ? 'active' : ''}" aria-current="${activeTab === 'account' ? 'page' : 'false'}">Account</a>
   </nav>
   <main role="main" id="main-content">
     <nav class="breadcrumb" aria-label="Breadcrumb"><a href="/admin/dashboard" class="bc-link">Admin</a><span class="bc-sep">/</span>${breadcrumbHtml}</nav>
@@ -1179,10 +1328,11 @@ export class AdminController {
     <!-- USERS -->
     <div id="tab-users" class="tab-section ${activeTab === 'users' ? 'active' : ''}" role="tabpanel">
       <div class="card">
-        <div class="action-bar" style="margin-bottom:14px;"><div style="font-size:14px;font-weight:800;color:#fff;">User Accounts</div><button class="btn btn-primary btn-sm" onclick="showNotify('Invite User','User invitation system is ready.','📧')">+ Invite User</button></div>
+        <div class="action-bar" style="margin-bottom:14px;"><div style="font-size:14px;font-weight:800;color:#fff;">User Accounts</div><button class="btn btn-primary btn-sm" onclick="openInviteUserDlg()">+ Invite User</button></div>
         <table class="data-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead>
-          <tbody><tr><td><strong>Sandip Thapa</strong><div style="font-size:10px;color:#64748b;">lafasandip15@gmail.com</div></td><td><span class="badge badge-purple">SUPER_ADMIN</span></td><td><span class="badge badge-green">ACTIVE</span></td><td><span style="font-size:11px;color:#64748b;">Now</span></td><td><button class="btn btn-secondary btn-sm">Edit</button></td></tr></tbody>
+          <tbody id="usersTableBody"></tbody>
         </table>
+        <div id="usersEmpty" style="display:none;" class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No users yet</div></div>
       </div>
     </div>
 
@@ -1315,9 +1465,77 @@ export class AdminController {
         <!-- CARD 6: SECURITY -->
         <div class="card">
           <div style="font-size:14px;font-weight:800;color:#f87171;margin-bottom:14px;display:flex;align-items:center;gap:6px;">🔐 Security &amp; Credentials</div>
-          <div class="form-group"><label for="setNewPass">New Admin Password</label><input type="password" id="setNewPass" placeholder="Leave blank to keep current" /></div>
-          <div class="form-group"><label for="setConfPass">Confirm Password</label><input type="password" id="setConfPass" placeholder="Confirm new password" /></div>
-          <button class="btn btn-primary" onclick="saveSecuritySettings()">Update Password</button>
+          <p style="font-size:12px;color:#94a3b8;line-height:1.6;">Password, two-factor authentication, and active sessions are managed from your Account Settings — changing them there requires confirming your current password and correctly signs out other sessions.</p>
+          <a href="/admin/account" class="btn btn-primary" style="text-decoration:none;display:inline-block;">Go to Account Settings →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACCOUNT -->
+    <div id="tab-account" class="tab-section ${activeTab === 'account' ? 'active' : ''}" role="tabpanel">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <!-- PROFILE -->
+        <div class="card">
+          <div style="font-size:14px;font-weight:800;color:#38bdf8;margin-bottom:14px;display:flex;align-items:center;gap:6px;">👤 Profile</div>
+          <div class="form-group"><label for="acctFirstName">First Name</label><input type="text" id="acctFirstName" /></div>
+          <div class="form-group"><label for="acctLastName">Last Name</label><input type="text" id="acctLastName" /></div>
+          <button class="btn btn-primary" onclick="saveAcctProfile()">Save Profile</button>
+
+          <div style="border-top:1px solid #1e293b;margin:18px 0;"></div>
+          <div style="font-size:12px;font-weight:800;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Email Address</div>
+          <div id="acctCurrentEmail" style="font-size:13px;color:#e2e8f0;margin-bottom:10px;">—</div>
+          <div class="form-group"><label for="acctNewEmail">New Email</label><input type="email" id="acctNewEmail" autocomplete="off" /></div>
+          <div class="form-group"><label for="acctEmailPass">Current Password</label><input type="password" id="acctEmailPass" autocomplete="current-password" /></div>
+          <button class="btn btn-secondary" onclick="requestAcctEmailChange()">Send Confirmation Link</button>
+        </div>
+
+        <!-- CHANGE PASSWORD -->
+        <div class="card">
+          <div style="font-size:14px;font-weight:800;color:#f87171;margin-bottom:14px;display:flex;align-items:center;gap:6px;">🔑 Change Password</div>
+          <div class="form-group"><label for="pwCurrent">Current Password</label><input type="password" id="pwCurrent" autocomplete="current-password" /></div>
+          <div class="form-group"><label for="pwNew">New Password</label><input type="password" id="pwNew" autocomplete="new-password" /><div style="font-size:10px;color:#64748b;margin-top:4px;">At least 10 characters, with upper &amp; lower case, a number, and a symbol.</div></div>
+          <div class="form-group"><label for="pwConfirm">Confirm New Password</label><input type="password" id="pwConfirm" autocomplete="new-password" /></div>
+          <button class="btn btn-primary" onclick="submitChangePassword()">Change Password</button>
+          <p style="font-size:10px;color:#64748b;margin-top:10px;">Your other active sessions will be signed out.</p>
+        </div>
+
+        <!-- TWO-FACTOR AUTHENTICATION -->
+        <div class="card">
+          <div style="font-size:14px;font-weight:800;color:#34d399;margin-bottom:14px;display:flex;align-items:center;gap:6px;">🔒 Two-Factor Authentication</div>
+          <p id="tfaStatusText" style="font-size:12px;color:#94a3b8;margin-bottom:12px;">Loading status...</p>
+
+          <div id="tfaDisabledView" style="display:none;">
+            <div class="form-group"><label for="tfaSetupPass">Current Password</label><input type="password" id="tfaSetupPass" autocomplete="current-password" /></div>
+            <button class="btn btn-primary" onclick="beginTwoFaSetup()">Enable Two-Factor Authentication</button>
+          </div>
+
+          <div id="tfaSetupView" style="display:none;">
+            <p style="font-size:12px;color:#94a3b8;">Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password, etc.), then enter the 6-digit code it shows.</p>
+            <img id="tfaQrImg" src="" alt="Two-factor authentication setup QR code" style="margin:12px 0;border-radius:8px;background:#fff;padding:8px;width:180px;height:180px;" />
+            <div style="font-size:10px;color:#64748b;margin-bottom:10px;">Can't scan? Enter this key manually: <code id="tfaSecretText" style="color:#38bdf8;word-break:break-all;"></code></div>
+            <div class="form-group"><label for="tfaVerifyCode">6-Digit Code</label><input type="text" id="tfaVerifyCode" inputmode="numeric" autocomplete="one-time-code" /></div>
+            <button class="btn btn-primary" onclick="verifyTwoFaSetup()">Verify &amp; Enable</button>
+            <button class="btn btn-secondary" onclick="cancelTwoFaSetup()">Cancel</button>
+          </div>
+
+          <div id="tfaRecoveryView" style="display:none;">
+            <p style="font-size:12px;color:#fbbf24;font-weight:700;">Save these recovery codes now — each works once if you lose access to your authenticator, and they will not be shown again.</p>
+            <div id="tfaRecoveryCodes" role="list" style="font-family:monospace;font-size:12px;background:#020617;border:1px solid #1e293b;border-radius:8px;padding:12px;margin:10px 0;line-height:1.9;"></div>
+            <button class="btn btn-primary" onclick="closeTwoFaRecoveryView()">I've saved these codes</button>
+          </div>
+
+          <div id="tfaEnabledView" style="display:none;">
+            <p style="font-size:12px;color:#94a3b8;margin-bottom:10px;">Two-factor authentication is enabled on this account.</p>
+            <div class="form-group"><label for="tfaDisablePass">Current Password</label><input type="password" id="tfaDisablePass" autocomplete="current-password" /></div>
+            <div class="form-group"><label for="tfaDisableCode">Authentication Code or Recovery Code</label><input type="text" id="tfaDisableCode" autocomplete="one-time-code" /></div>
+            <button class="btn btn-danger" onclick="disableTwoFa()">Disable Two-Factor Authentication</button>
+          </div>
+        </div>
+
+        <!-- SESSIONS -->
+        <div class="card">
+          <div style="font-size:14px;font-weight:800;color:#c084fc;margin-bottom:14px;display:flex;align-items:center;gap:6px;">💻 Active Sessions</div>
+          <div id="sessionsList"><div class="empty-state"><div class="empty-icon">🔄</div><div class="empty-text">Loading sessions...</div></div></div>
         </div>
       </div>
     </div>
@@ -1426,6 +1644,36 @@ export class AdminController {
     </div>
   </div>
 
+  <!-- INVITE USER DIALOG -->
+  <div id="inviteUserDlg" class="a11y-overlay" role="dialog" aria-modal="true" aria-labelledby="inviteUserTitle">
+    <div class="a11y-box" tabindex="-1">
+      <div class="a11y-hdr"><span class="a11y-icon" aria-hidden="true">📧</span><h2 class="a11y-title" id="inviteUserTitle">Invite User</h2></div>
+      <div class="a11y-body">
+        <p class="a11y-msg">They'll receive an email with a link to verify their address and set their own password.</p>
+        <div class="form-group"><label for="invFirstName">First Name *</label><input type="text" id="invFirstName" class="a11y-input" autocomplete="off" /></div>
+        <div class="form-group"><label for="invLastName">Last Name *</label><input type="text" id="invLastName" class="a11y-input" autocomplete="off" /></div>
+        <div class="form-group"><label for="invEmail">Email *</label><input type="email" id="invEmail" class="a11y-input" autocomplete="off" /></div>
+        <div class="form-group"><label for="invRole">Role *</label><select id="invRole" class="a11y-input"></select></div>
+      </div>
+      <div class="a11y-footer"><button class="btn btn-secondary" onclick="closeInviteUserDlg()">Cancel</button><button class="btn btn-primary" id="inviteUserSubmitBtn" onclick="submitInviteUser()">Send Invite</button></div>
+    </div>
+  </div>
+
+  <!-- EDIT USER DIALOG -->
+  <div id="editUserDlg" class="a11y-overlay" role="dialog" aria-modal="true" aria-labelledby="editUserTitle">
+    <div class="a11y-box" tabindex="-1">
+      <div class="a11y-hdr"><span class="a11y-icon" aria-hidden="true">✏️</span><h2 class="a11y-title" id="editUserTitle">Edit User</h2></div>
+      <div class="a11y-body">
+        <input type="hidden" id="editUserId" />
+        <div class="form-group"><label for="editFirstName">First Name</label><input type="text" id="editFirstName" class="a11y-input" autocomplete="off" /></div>
+        <div class="form-group"><label for="editLastName">Last Name</label><input type="text" id="editLastName" class="a11y-input" autocomplete="off" /></div>
+        <div class="form-group"><label for="editRole">Role</label><select id="editRole" class="a11y-input"></select></div>
+        <div class="form-group"><label for="editStatus">Status</label><select id="editStatus" class="a11y-input"><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended</option><option value="INACTIVE">Inactive</option></select></div>
+      </div>
+      <div class="a11y-footer"><button class="btn btn-secondary" onclick="closeEditUserDlg()">Cancel</button><button class="btn btn-primary" id="editUserSubmitBtn" onclick="submitEditUser()">Save Changes</button></div>
+    </div>
+  </div>
+
   <!-- COMMAND PALETTE -->
   <div id="cmdModal" class="cmd-modal" role="dialog" aria-modal="true" aria-label="Command palette" onclick="if(event.target===this)closeCmd()">
     <div class="cmd-box">
@@ -1488,7 +1736,7 @@ export class AdminController {
 
     function confirmLogout(){
       showConfirmDlg({title:'Sign Out',message:'Sign out of the Admin Console?',icon:'🔐',okLabel:'Sign Out',
-        onConfirm:function(){document.cookie='admin_logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';localStorage.removeItem('admin_logged_in');sessionStorage.removeItem('cms_token');window.location.href='/admin/login';}
+        onConfirm:function(){window.location.href='/admin/logout';}
       });
     }
 
@@ -1805,6 +2053,200 @@ export class AdminController {
     function flushCache(){fetch('/admin/system/cache/flush',{method:'POST',headers:{'Content-Type':'application/json'}}).then(function(r){return r.json();}).then(function(d){var el=document.getElementById('cacheResult');if(el){el.style.display='block';el.textContent='✅ '+(d.data&&d.data.message?d.data.message:'Caches flushed!');}showMsg('All caches flushed!','success');});}
     function processScheduled(){fetch('/api/v1/content/process-scheduled',{method:'POST',headers:{'Content-Type':'application/json'}}).then(function(r){return r.json();}).then(function(d){if(d.success)showMsg('Processed '+(d.data&&d.data.published?d.data.published:0)+' scheduled items','success');});}
 
+    /* ══ USERS ══ */
+    var _usersCache=[];var _rolesCache=[];
+    var STATUS_BADGE={ACTIVE:'badge-green',PENDING:'badge-amber',SUSPENDED:'badge-red',INACTIVE:'badge-gray'};
+    function loadUsers(){
+      fetch('/api/v1/users').then(function(r){return r.json();}).then(function(d){
+        if(!d.success)return;
+        _usersCache=d.data||[];
+        var tbody=document.getElementById('usersTableBody');
+        if(!_usersCache.length){document.getElementById('usersEmpty').style.display='block';tbody.innerHTML='';return;}
+        document.getElementById('usersEmpty').style.display='none';
+        tbody.innerHTML=_usersCache.map(function(u){
+          var statusCls=STATUS_BADGE[u.status]||'badge-gray';
+          var roleCls=u.roles.indexOf('SUPER_ADMIN')!==-1?'badge-purple':'badge-blue';
+          var lastLogin=u.lastLoginAt?new Date(u.lastLoginAt).toLocaleString():'Never';
+          var actions='<button class="btn btn-secondary btn-sm" onclick="openEditUserDlg(this.dataset.id)" data-id="'+esc(u.id)+'">Edit</button>';
+          if(u.status==='PENDING')actions+=' <button class="btn btn-secondary btn-sm" onclick="resendInvite(this.dataset.id)" data-id="'+esc(u.id)+'">Resend Invite</button>';
+          if(u.status!=='SUSPENDED')actions+=' <button class="btn btn-danger btn-sm" onclick="deactivateUser(this.dataset.id)" data-id="'+esc(u.id)+'">Deactivate</button>';
+          return '<tr><td><strong>'+esc(u.firstName+' '+u.lastName)+'</strong><div style="font-size:10px;color:#64748b;">'+esc(u.email)+'</div></td>'+
+            '<td><span class="badge '+roleCls+'">'+esc(u.roles.join(', ')||'—')+'</span></td>'+
+            '<td><span class="badge '+statusCls+'">'+esc(u.status)+'</span>'+(u.totpEnabled?' <span title="Two-factor enabled" aria-label="Two-factor authentication enabled">🔒</span>':'')+'</td>'+
+            '<td><span style="font-size:11px;color:#64748b;">'+esc(lastLogin)+'</span></td>'+
+            '<td>'+actions+'</td></tr>';
+        }).join('');
+      }).catch(function(){});
+    }
+    function loadRolesInto(selectId){
+      var sel=document.getElementById(selectId);
+      function render(){sel.innerHTML=_rolesCache.map(function(r){return '<option value="'+esc(r.id)+'">'+esc(r.name)+'</option>';}).join('');}
+      if(_rolesCache.length){render();return;}
+      fetch('/api/v1/users/roles').then(function(r){return r.json();}).then(function(d){_rolesCache=d.data||[];render();}).catch(function(){});
+    }
+    function openInviteUserDlg(){_lastFocused=document.activeElement;setVal('invFirstName','');setVal('invLastName','');setVal('invEmail','');loadRolesInto('invRole');document.getElementById('inviteUserDlg').classList.add('open');document.getElementById('invFirstName').focus();}
+    function closeInviteUserDlg(){document.getElementById('inviteUserDlg').classList.remove('open');if(_lastFocused)_lastFocused.focus();}
+    function submitInviteUser(){
+      var firstName=getVal('invFirstName').trim(),lastName=getVal('invLastName').trim(),email=getVal('invEmail').trim(),roleId=getVal('invRole');
+      if(!firstName||!lastName||!email||!roleId){showMsg('All fields are required.','error');return;}
+      var btn=document.getElementById('inviteUserSubmitBtn');btn.disabled=true;btn.textContent='Sending...';
+      fetch('/api/v1/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName:firstName,lastName:lastName,email:email,roleId:roleId})})
+        .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+        .then(function(res){btn.disabled=false;btn.textContent='Send Invite';if(res.ok){closeInviteUserDlg();showMsg('Invite sent to '+email,'success');loadUsers();}else{showMsg(res.d.message||'Failed to send invite.','error');}})
+        .catch(function(){btn.disabled=false;btn.textContent='Send Invite';showMsg('Network error. Try again.','error');});
+    }
+    function openEditUserDlg(id){
+      var u=_usersCache.find(function(x){return x.id===id;});if(!u)return;
+      _lastFocused=document.activeElement;
+      setVal('editUserId',u.id);setVal('editFirstName',u.firstName);setVal('editLastName',u.lastName);setVal('editStatus',u.status==='PENDING'?'ACTIVE':u.status);
+      loadRolesInto('editRole');
+      setTimeout(function(){var sel=document.getElementById('editRole');var match=_rolesCache.find(function(r){return u.roles.indexOf(r.name)!==-1;});if(match)sel.value=match.id;},50);
+      document.getElementById('editUserDlg').classList.add('open');document.getElementById('editFirstName').focus();
+    }
+    function closeEditUserDlg(){document.getElementById('editUserDlg').classList.remove('open');if(_lastFocused)_lastFocused.focus();}
+    function submitEditUser(){
+      var id=getVal('editUserId');
+      var body={firstName:getVal('editFirstName').trim(),lastName:getVal('editLastName').trim(),roleId:getVal('editRole'),status:getVal('editStatus')};
+      var btn=document.getElementById('editUserSubmitBtn');btn.disabled=true;btn.textContent='Saving...';
+      fetch('/api/v1/users/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+        .then(function(res){btn.disabled=false;btn.textContent='Save Changes';if(res.ok){closeEditUserDlg();showMsg('User updated','success');loadUsers();}else{showMsg(res.d.message||'Failed to update user.','error');}})
+        .catch(function(){btn.disabled=false;btn.textContent='Save Changes';showMsg('Network error. Try again.','error');});
+    }
+    function resendInvite(id){fetch('/api/v1/users/'+id+'/resend-invite',{method:'POST'}).then(function(r){return r.json();}).then(function(d){showMsg(d.success?'Invite resent':'Failed to resend invite',d.success?'success':'error');}).catch(function(){showMsg('Network error','error');});}
+    function deactivateUser(id){
+      var u=_usersCache.find(function(x){return x.id===id;});
+      showConfirmDlg({title:'Deactivate User',message:'Deactivate '+(u?u.firstName+' '+u.lastName:'this user')+'? They will be signed out and unable to log in until reactivated.',icon:'🚫',destructive:true,okLabel:'Deactivate',onConfirm:function(){
+        fetch('/api/v1/users/'+id+'/deactivate',{method:'POST'}).then(function(r){return r.json();}).then(function(d){showMsg(d.success?'User deactivated':'Failed to deactivate user',d.success?'success':'error');loadUsers();}).catch(function(){showMsg('Network error','error');});
+      }});
+    }
+
+    /* ══ ACCOUNT SETTINGS ══ */
+    var _tfaPendingSecret=null,_acctCurrentSessionId=null;
+
+    function loadAccountData(){
+      fetch('/api/v1/account/me').then(function(r){return r.json();}).then(function(d){
+        if(!d.success)return;
+        setVal('acctFirstName',d.data.firstName);setVal('acctLastName',d.data.lastName);
+        setTxt('acctCurrentEmail',d.data.email);
+        renderTfaStatus(d.data.totpEnabled);
+      }).catch(function(){});
+      loadAcctSessions();
+    }
+
+    function renderTfaStatus(enabled){
+      document.getElementById('tfaDisabledView').style.display=enabled?'none':'block';
+      document.getElementById('tfaEnabledView').style.display=enabled?'block':'none';
+      document.getElementById('tfaSetupView').style.display='none';
+      document.getElementById('tfaRecoveryView').style.display='none';
+      setTxt('tfaStatusText',enabled?'Two-factor authentication is currently ENABLED on your account.':'Two-factor authentication is currently disabled. Enable it to require a code from your authenticator app at sign-in.');
+    }
+
+    function saveAcctProfile(){
+      var body={firstName:getVal('acctFirstName').trim(),lastName:getVal('acctLastName').trim()};
+      if(!body.firstName||!body.lastName){showMsg('First and last name are required.','error');return;}
+      fetch('/api/v1/account/me',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+        .then(function(res){showMsg(res.ok?'Profile updated':(res.d.message||'Failed to update profile'),res.ok?'success':'error');})
+        .catch(function(){showMsg('Network error. Try again.','error');});
+    }
+
+    function requestAcctEmailChange(){
+      var newEmail=getVal('acctNewEmail').trim(),currentPassword=getVal('acctEmailPass');
+      if(!newEmail||!currentPassword){showMsg('New email and current password are required.','error');return;}
+      fetch('/api/v1/account/email-change',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({newEmail:newEmail,currentPassword:currentPassword})})
+        .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+        .then(function(res){if(res.ok){setVal('acctNewEmail','');setVal('acctEmailPass','');}showMsg(res.ok?(res.d.message||'Confirmation link sent.'):(res.d.message||'Failed to request email change'),res.ok?'success':'error');})
+        .catch(function(){showMsg('Network error. Try again.','error');});
+    }
+
+    function submitChangePassword(){
+      var current=getVal('pwCurrent'),next=getVal('pwNew'),confirm=getVal('pwConfirm');
+      if(!current||!next){showMsg('Current and new password are required.','error');return;}
+      if(next!==confirm){showMsg('New passwords do not match.','error');return;}
+      fetch('/api/v1/account/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:current,newPassword:next})})
+        .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+        .then(function(res){if(res.ok){setVal('pwCurrent','');setVal('pwNew','');setVal('pwConfirm','');loadAcctSessions();}showMsg(res.ok?(res.d.message||'Password changed.'):(res.d.message||'Failed to change password'),res.ok?'success':'error');})
+        .catch(function(){showMsg('Network error. Try again.','error');});
+    }
+
+    function beginTwoFaSetup(){
+      var currentPassword=getVal('tfaSetupPass');
+      if(!currentPassword){showMsg('Current password is required.','error');return;}
+      fetch('/api/v1/account/2fa/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:currentPassword})})
+        .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+        .then(function(res){
+          if(!res.ok){showMsg(res.d.message||'Failed to start setup.','error');return;}
+          setVal('tfaSetupPass','');_tfaPendingSecret=res.d.data.secret;
+          document.getElementById('tfaQrImg').src=res.d.data.qrDataUrl;
+          setTxt('tfaSecretText',res.d.data.secret);
+          document.getElementById('tfaDisabledView').style.display='none';
+          document.getElementById('tfaSetupView').style.display='block';
+          document.getElementById('tfaVerifyCode').focus();
+        })
+        .catch(function(){showMsg('Network error. Try again.','error');});
+    }
+    function cancelTwoFaSetup(){_tfaPendingSecret=null;setVal('tfaVerifyCode','');document.getElementById('tfaSetupView').style.display='none';document.getElementById('tfaDisabledView').style.display='block';}
+    function verifyTwoFaSetup(){
+      var code=getVal('tfaVerifyCode').trim();
+      if(!code||!_tfaPendingSecret){showMsg('Enter the 6-digit code from your app.','error');return;}
+      fetch('/api/v1/account/2fa/verify-setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({secret:_tfaPendingSecret,code:code})})
+        .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+        .then(function(res){
+          if(!res.ok){showMsg(res.d.message||'Invalid code.','error');return;}
+          _tfaPendingSecret=null;setVal('tfaVerifyCode','');
+          document.getElementById('tfaSetupView').style.display='none';
+          document.getElementById('tfaRecoveryCodes').innerHTML=(res.d.recoveryCodes||[]).map(function(c){return '<div role="listitem">'+esc(c)+'</div>';}).join('');
+          document.getElementById('tfaRecoveryView').style.display='block';
+          showMsg('Two-factor authentication enabled.','success');
+        })
+        .catch(function(){showMsg('Network error. Try again.','error');});
+    }
+    function closeTwoFaRecoveryView(){document.getElementById('tfaRecoveryView').style.display='none';renderTfaStatus(true);}
+    function disableTwoFa(){
+      var currentPassword=getVal('tfaDisablePass'),code=getVal('tfaDisableCode').trim();
+      if(!currentPassword||!code){showMsg('Current password and a code are required.','error');return;}
+      showConfirmDlg({title:'Disable Two-Factor Authentication',message:'This will remove the extra sign-in protection on your account.',icon:'⚠️',destructive:true,okLabel:'Disable',onConfirm:function(){
+        fetch('/api/v1/account/2fa/disable',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({currentPassword:currentPassword,code:code})})
+          .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+          .then(function(res){if(res.ok){setVal('tfaDisablePass','');setVal('tfaDisableCode','');renderTfaStatus(false);loadAcctSessions();}showMsg(res.ok?(res.d.message||'Two-factor authentication disabled.'):(res.d.message||'Failed to disable.'),res.ok?'success':'error');})
+          .catch(function(){showMsg('Network error. Try again.','error');});
+      }});
+    }
+
+    function loadAcctSessions(){
+      fetch('/api/v1/account/sessions').then(function(r){return r.json();}).then(function(d){
+        if(!d.success)return;
+        var list=document.getElementById('sessionsList');
+        var items=d.data||[];
+        if(!items.length){list.innerHTML='<div class="empty-state"><div class="empty-icon">💻</div><div class="empty-text">No active sessions</div></div>';return;}
+        list.innerHTML=items.map(function(s){
+          var device=(s.userAgent||'Unknown device').slice(0,80);
+          var when=s.createdAt?new Date(s.createdAt).toLocaleString():'—';
+          var badge=s.current?'<span class="badge badge-green">This device</span>':'';
+          var revokeBtn=s.current?'':'<button class="btn btn-danger btn-xs" onclick="revokeAcctSession(this.dataset.id)" data-id="'+esc(s.id)+'">Revoke</button>';
+          return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #1e293b;">'+
+            '<div><div style="font-size:12px;color:#e2e8f0;">'+esc(device)+' '+badge+'</div><div style="font-size:10px;color:#64748b;">Signed in '+esc(when)+(s.ipAddress?' from '+esc(s.ipAddress):'')+'</div></div>'+
+            revokeBtn+'</div>';
+        }).join('');
+      }).catch(function(){});
+    }
+    function revokeAcctSession(id){
+      showConfirmDlg({title:'Revoke Session',message:'Sign out this device?',icon:'🚫',destructive:true,okLabel:'Revoke',onConfirm:function(){
+        fetch('/api/v1/account/sessions/'+id+'/revoke',{method:'POST'}).then(function(r){return r.json();}).then(function(d){showMsg(d.success?'Session revoked':'Failed to revoke session',d.success?'success':'error');loadAcctSessions();}).catch(function(){showMsg('Network error','error');});
+      }});
+    }
+
+    function handlePendingEmailConfirmation(){
+      var params=new URLSearchParams(window.location.search);
+      var token=params.get('confirmEmailToken');
+      if(!token)return;
+      fetch('/api/v1/account/email-change/confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:token})})
+        .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+        .then(function(res){showMsg(res.ok?(res.d.message||'Email confirmed.'):(res.d.message||'This confirmation link is invalid or has expired.'),res.ok?'success':'error');window.history.replaceState({},'','/admin/account');if(res.ok)loadAccountData();})
+        .catch(function(){});
+    }
+
     /* ══ SETTINGS ══ */
     function loadSettings(){
       fetch('/api/v1/config').then(function(r){return r.json();}).then(function(d){
@@ -1834,8 +2276,6 @@ export class AdminController {
         if(d.success){showNotify('Settings Saved!','All platform identity, author profile, hero banner, stats, and footer settings updated live!','✅');}else showMsg('Failed to save settings','error');
       }).catch(function(e){showMsg('Network error: '+e.message,'error');});
     }
-    function saveSecuritySettings(){var np=getVal('setNewPass');var cp=getVal('setConfPass');if(np&&np!==cp){showMsg('Passwords do not match','error');return;}showMsg('Security settings updated','success');}
-
     /* ══ COMMAND PALETTE ══ */
     var cmds=[{label:'Dashboard',url:'/admin/dashboard',group:'Navigate'},{label:'Content Management',url:'/admin/content',group:'Navigate'},{label:'Content Editor',url:'/admin/editor',group:'Navigate'},{label:'Categories',url:'/admin/categories',group:'Navigate'},{label:'Navigation Menus',url:'/admin/navigation',group:'Navigate'},{label:'Media Library',url:'/admin/media',group:'Navigate'},{label:'Version History',url:'/admin/revisions',group:'Navigate'},{label:'SEO & Redirects',url:'/admin/seo',group:'Navigate'},{label:'System Operations',url:'/admin/system',group:'Navigate'},{label:'Platform Settings',url:'/admin/settings',group:'Navigate'},{label:'+ New Article',url:'/admin/editor?create=Article',group:'Create'},{label:'+ New Poem',url:'/admin/editor?create=Poem',group:'Create'},{label:'+ New Research',url:'/admin/editor?create=Research',group:'Create'},{label:'+ New Publication',url:'/admin/editor?create=Publication',group:'Create'},{label:'+ New Project',url:'/admin/editor?create=Project',group:'Create'},{label:'+ New Event',url:'/admin/editor?create=Event',group:'Create'},{label:'+ New Page',url:'/admin/editor?create=Page',group:'Create'},{label:'sitemap.xml',url:'/sitemap.xml',group:'SEO'},{label:'robots.txt',url:'/robots.txt',group:'SEO'},{label:'RSS Feed',url:'/rss.xml',group:'SEO'},{label:'Flush Caches',action:'flushCache',group:'System'},{label:'Process Scheduled',action:'processScheduled',group:'System'},{label:'Logout',action:'confirmLogout',group:'System'}];
     var cmdFocusIdx=-1;
@@ -1869,6 +2309,8 @@ export class AdminController {
       if(_AT==='media')loadMediaLibrary();
       if(_AT==='seo'){loadRedirects();loadSeoDashboard();}
       if(_AT==='system')fetchSystemInfo();
+      if(_AT==='users')loadUsers();
+      if(_AT==='account'){loadAccountData();handlePendingEmailConfirmation();}
       if(createType||editId)fetchMasterCategories();
       if(_IM&&_IM!=='ALL'&&_IM!=='RECYCLE_BIN'){var typeEl=document.getElementById('cType');if(typeEl)typeEl.value=_IM;}
       if(_IM==='RECYCLE_BIN'){fetch('/api/v1/content?includeDeleted=true&limit=50').then(function(r){return r.json();}).then(function(d){if(d.success&&d.data){var deleted=(d.data.items||[]).filter(function(i){return i.isDeleted;});repo=deleted;renderRows(deleted);currentTotal=deleted.length;currentTotalPages=1;renderPagination();}});}

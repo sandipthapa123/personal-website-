@@ -30,11 +30,11 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({
         src={src}
         alt={decorative ? '' : alt}
         loading={loading}
-        className="w-full rounded-2xl border border-slate-800 shadow-xl object-cover"
+        className="w-full rounded-2xl border border-ink-border shadow-xl shadow-black/20 object-cover"
         aria-hidden={decorative ? 'true' : undefined}
       />
       {caption && (
-        <figcaption className="text-center text-xs text-slate-400 italic">
+        <figcaption className="text-center text-xs text-ink-400 italic">
           {caption}
         </figcaption>
       )}

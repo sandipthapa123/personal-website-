@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface INavItem {
   label: string;
@@ -99,6 +100,7 @@ const DEFAULT_MAIN_NAVIGATION: INavItem[] = [
 ];
 
 export function HeaderNav() {
+  const router = useRouter();
   const [navItems, setNavItems] = useState<INavItem[]>(DEFAULT_MAIN_NAVIGATION);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -108,6 +110,7 @@ export function HeaderNav() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [activeOptionIndex, setActiveOptionIndex] = useState(-1);
 
   const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
@@ -158,6 +161,22 @@ export function HeaderNav() {
           hamburgerButtonRef.current?.focus();
         }
       }
+      if (searchOpen && searchResults.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setActiveOptionIndex((i) => (i + 1) % searchResults.length);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setActiveOptionIndex((i) => (i <= 0 ? searchResults.length - 1 : i - 1));
+        } else if (e.key === 'Enter' && activeOptionIndex >= 0) {
+          e.preventDefault();
+          const result = searchResults[activeOptionIndex];
+          setSearchOpen(false);
+          setSearchQuery('');
+          setSearchResults([]);
+          router.push(result.url);
+        }
+      }
       if (mobileOpen && e.key === 'Tab' && mobileDrawerRef.current) {
         const focusables = mobileDrawerRef.current.querySelectorAll<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -176,7 +195,7 @@ export function HeaderNav() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [mobileOpen, searchOpen]);
+  }, [mobileOpen, searchOpen, searchResults, activeOptionIndex, router]);
 
   // Focus search input on open
   useEffect(() => {
@@ -184,6 +203,11 @@ export function HeaderNav() {
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
   }, [searchOpen]);
+
+  // Reset keyboard-active option whenever results or query change
+  useEffect(() => {
+    setActiveOptionIndex(-1);
+  }, [searchResults, searchQuery]);
 
   const performSearch = useCallback((q: string) => {
     if (!q.trim()) {
@@ -214,20 +238,20 @@ export function HeaderNav() {
     <>
       <header
         id="site-header"
-        className="bg-slate-950/95 border-b border-slate-800 text-white sticky top-0 z-40 backdrop-blur shadow-md"
+        className="bg-ink/95 border-b border-ink-border text-ink-100 sticky top-0 z-40 backdrop-blur shadow-md shadow-black/20"
         role="banner"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           {/* Brand */}
           <Link href="/" className="flex items-center gap-3 group flex-shrink-0" aria-label="Sandip Thapa - Home">
-            <div className="w-9 h-9 bg-sky-600 rounded-xl flex items-center justify-center font-black text-sm text-white shadow-lg group-hover:bg-sky-500 transition-colors">
+            <div className="w-9 h-9 bg-gold rounded-xl flex items-center justify-center font-serif-display font-bold text-sm text-ink shadow-lg group-hover:brightness-110 transition-all">
               ST
             </div>
             <div className="hidden sm:flex flex-col">
-              <span className="font-extrabold text-sm tracking-tight text-white group-hover:text-sky-300 transition-colors">
+              <span className="font-serif-display font-semibold text-sm tracking-tight text-ink-100 group-hover:text-gold transition-colors">
                 Sandip Thapa
               </span>
-              <span className="text-[10px] text-slate-400 font-medium">Law, Research &amp; Accessibility</span>
+              <span className="text-[10px] text-ink-400 font-medium">Law, Research &amp; Accessibility</span>
             </div>
           </Link>
 
@@ -246,7 +270,7 @@ export function HeaderNav() {
               >
                 <Link
                   href={item.url}
-                  className="px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-900 rounded-lg transition-all flex items-center gap-1 whitespace-nowrap focus:ring-2 focus:ring-sky-500"
+                  className="px-3 py-2 text-ink-400 hover:text-gold hover:bg-ink-elevated rounded-lg transition-all flex items-center gap-1 whitespace-nowrap focus:ring-2 focus:ring-gold"
                   aria-haspopup={item.children ? 'true' : undefined}
                   aria-expanded={activeDropdown === item.label ? 'true' : undefined}
                 >
@@ -256,14 +280,14 @@ export function HeaderNav() {
 
                 {item.children && activeDropdown === item.label && (
                   <div
-                    className="absolute left-0 top-full mt-1 w-56 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl py-2 space-y-0.5 z-50"
+                    className="absolute left-0 top-full mt-1 w-56 bg-ink-elevated border border-ink-border rounded-xl shadow-2xl shadow-black/40 py-2 space-y-0.5 z-50"
                     role="menu"
                   >
                     {item.children.map((child) => (
                       <Link
                         key={child.label}
                         href={child.url}
-                        className="block px-4 py-2 text-slate-300 hover:text-sky-300 hover:bg-slate-800/80 text-xs transition-colors focus:ring-2 focus:ring-sky-500"
+                        className="block px-4 py-2 text-ink-400 hover:text-gold hover:bg-ink/80 text-xs transition-colors focus:ring-2 focus:ring-gold"
                         role="menuitem"
                       >
                         {child.label}
@@ -284,10 +308,10 @@ export function HeaderNav() {
                 setMobileOpen(false);
               }}
               aria-label="Open search modal (Ctrl+K)"
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-lg text-xs font-medium transition-colors focus:ring-2 focus:ring-sky-500"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-ink-elevated hover:bg-ink border border-ink-border text-ink-400 rounded-lg text-xs font-medium transition-colors focus:ring-2 focus:ring-gold"
             >
               <span>Search</span>
-              <kbd className="hidden md:block px-1.5 py-0.5 bg-slate-950 rounded text-[10px] border border-slate-800">Ctrl+K</kbd>
+              <kbd className="hidden md:block px-1.5 py-0.5 bg-ink rounded text-[10px] border border-ink-border">Ctrl+K</kbd>
             </button>
 
             {/* Mobile Hamburger Button (Visible ONLY on Mobile/Tablet < 1024px, NEVER on Desktop) */}
@@ -297,7 +321,7 @@ export function HeaderNav() {
               aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={mobileOpen}
               aria-controls="mobile-nav-panel"
-              className="lg:hidden p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors focus:ring-2 focus:ring-sky-500"
+              className="lg:hidden p-2 text-ink-400 hover:text-ink-100 hover:bg-ink-elevated rounded-lg transition-colors focus:ring-2 focus:ring-gold"
             >
               {mobileOpen ? (
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,26 +342,26 @@ export function HeaderNav() {
         <div
           id="mobile-nav-panel"
           ref={mobileDrawerRef}
-          className="lg:hidden fixed top-[56px] left-0 right-0 bottom-0 bg-slate-950/98 backdrop-blur z-50 overflow-y-auto p-4 border-t border-slate-800"
+          className="lg:hidden fixed top-[56px] left-0 right-0 bottom-0 bg-ink/98 backdrop-blur z-50 overflow-y-auto p-4 border-t border-ink-border"
           role="dialog"
           aria-modal="true"
           aria-label="Mobile Navigation Drawer"
         >
           <nav className="space-y-1">
             {navItems.map((item) => (
-              <div key={item.label} className="border-b border-slate-900 pb-1">
+              <div key={item.label} className="border-b border-ink-elevated pb-1">
                 <div className="flex items-center justify-between">
                   <Link
                     href={item.url}
                     onClick={() => setMobileOpen(false)}
-                    className="flex-1 px-4 py-3 text-slate-200 hover:text-white hover:bg-slate-900 rounded-xl font-bold text-sm transition-colors focus:ring-2 focus:ring-sky-500"
+                    className="flex-1 px-4 py-3 text-ink-100 hover:text-gold hover:bg-ink-elevated rounded-xl font-bold text-sm transition-colors focus:ring-2 focus:ring-gold"
                   >
                     {item.label}
                   </Link>
                   {item.children && (
                     <button
                       onClick={() => setMobileExpanded(mobileExpanded === item.label ? null : item.label)}
-                      className="px-3 py-3 text-slate-400 hover:text-white transition-colors focus:ring-2 focus:ring-sky-500"
+                      className="px-3 py-3 text-ink-400 hover:text-gold transition-colors focus:ring-2 focus:ring-gold"
                       aria-label={`Toggle ${item.label} submenu`}
                     >
                       <span className="text-xs">{mobileExpanded === item.label ? '▲' : '▼'}</span>
@@ -346,13 +370,13 @@ export function HeaderNav() {
                 </div>
 
                 {item.children && mobileExpanded === item.label && (
-                  <div className="ml-6 my-1 space-y-1 bg-slate-900/60 rounded-lg p-2">
+                  <div className="ml-6 my-1 space-y-1 bg-ink-elevated/60 rounded-lg p-2">
                     {item.children.map((child) => (
                       <Link
                         key={child.label}
                         href={child.url}
                         onClick={() => setMobileOpen(false)}
-                        className="block px-3 py-2 text-slate-300 hover:text-sky-300 hover:bg-slate-800 rounded-md text-xs font-medium transition-colors focus:ring-2 focus:ring-sky-500"
+                        className="block px-3 py-2 text-ink-400 hover:text-gold hover:bg-ink rounded-md text-xs font-medium transition-colors focus:ring-2 focus:ring-gold"
                       >
                         {child.label}
                       </Link>
@@ -362,10 +386,10 @@ export function HeaderNav() {
               </div>
             ))}
 
-            <div className="pt-4 border-t border-slate-800 mt-4">
+            <div className="pt-4 border-t border-ink-border mt-4">
               <a
                 href="/admin/login"
-                className="block text-center px-4 py-3 text-sky-400 border border-sky-800 bg-sky-950/40 text-xs font-bold rounded-xl hover:bg-sky-900 transition-colors"
+                className="block text-center px-4 py-3 text-gold border border-gold/30 bg-gold/10 text-xs font-bold rounded-xl hover:bg-gold/20 transition-colors"
               >
                 Backend Admin Console
               </a>
@@ -377,15 +401,15 @@ export function HeaderNav() {
       {/* Search Modal */}
       {searchOpen && (
         <div
-          className="fixed inset-0 bg-slate-950/90 backdrop-blur z-50 flex items-start justify-center pt-20 px-4"
+          className="fixed inset-0 bg-ink/90 backdrop-blur z-50 flex items-start justify-center pt-20 px-4"
           role="dialog"
           aria-label="Site search"
           aria-modal="true"
           onClick={(e) => { if (e.target === e.currentTarget) setSearchOpen(false); }}
         >
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800">
-              <span className="text-slate-400 text-sm font-bold">Search</span>
+          <div className="w-full max-w-2xl bg-ink-elevated border border-ink-border rounded-2xl shadow-2xl shadow-black/40 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-ink-border">
+              <span className="text-ink-400 text-sm font-bold">Search</span>
               <input
                 ref={searchInputRef}
                 type="search"
@@ -393,11 +417,16 @@ export function HeaderNav() {
                 onChange={handleSearchInput}
                 placeholder="Search articles, research, publications, poems..."
                 aria-label="Search the website"
-                className="flex-1 bg-transparent text-white text-sm placeholder:text-slate-500 outline-none"
+                role="combobox"
+                aria-expanded={searchResults.length > 0}
+                aria-controls="search-results-listbox"
+                aria-autocomplete="list"
+                aria-activedescendant={activeOptionIndex >= 0 ? `search-option-${activeOptionIndex}` : undefined}
+                className="flex-1 bg-transparent text-ink-100 text-sm placeholder:text-ink-400/70 outline-none"
               />
               <button
                 onClick={() => setSearchOpen(false)}
-                className="text-slate-500 hover:text-white px-2 py-1 text-xs font-semibold transition-colors focus:ring-2 focus:ring-sky-500"
+                className="text-ink-400 hover:text-gold px-2 py-1 text-xs font-semibold transition-colors focus:ring-2 focus:ring-gold"
                 aria-label="Close search modal"
               >
                 ESC
@@ -406,34 +435,39 @@ export function HeaderNav() {
 
             <div className="max-h-[60vh] overflow-y-auto">
               {searching && (
-                <div className="p-8 text-center text-slate-500 text-sm animate-pulse">Searching catalog...</div>
+                <div className="p-8 text-center text-ink-400 text-sm animate-pulse">Searching catalog...</div>
               )}
 
               {!searching && searchQuery && searchResults.length === 0 && (
                 <div className="p-8 text-center">
-                  <p className="text-slate-400 text-sm">No results found for &quot;<strong className="text-white">{searchQuery}</strong>&quot;</p>
+                  <p className="text-ink-400 text-sm">No results found for &quot;<strong className="text-ink-100">{searchQuery}</strong>&quot;</p>
                 </div>
               )}
 
               {!searching && searchResults.length > 0 && (
-                <ul role="listbox" aria-label="Search results" className="divide-y divide-slate-800/50">
-                  {searchResults.map((result) => (
-                    <li key={result.id} role="option">
-                      <a
+                <ul id="search-results-listbox" role="listbox" aria-label="Search results" className="divide-y divide-ink-border/50">
+                  {searchResults.map((result, index) => (
+                     <li
+                      key={result.id}
+                      id={`search-option-${index}`}
+                      role="option"
+                      aria-selected={index === activeOptionIndex}
+                    >
+                      <Link
                         href={result.url}
                         onClick={() => { setSearchOpen(false); setSearchQuery(''); setSearchResults([]); }}
-                        className="flex items-start gap-3 px-5 py-4 hover:bg-slate-800/60 transition-colors group"
+                        className={`flex items-start gap-3 px-5 py-4 hover:bg-ink/60 transition-colors group ${index === activeOptionIndex ? 'bg-ink/60' : ''}`}
                       >
-                        <span className="mt-0.5 px-1.5 py-0.5 bg-slate-800 text-slate-400 text-[9px] font-bold rounded uppercase tracking-wider flex-shrink-0">
+                        <span className="mt-0.5 px-1.5 py-0.5 bg-ink-elevated text-ink-400 text-[9px] font-bold rounded uppercase tracking-wider flex-shrink-0">
                           {result.entityType}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-slate-200 group-hover:text-sky-300 transition-colors leading-snug">{result.title}</p>
+                          <p className="text-sm font-bold text-ink-100 group-hover:text-gold transition-colors leading-snug">{result.title}</p>
                           {result.summary && (
-                            <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">{result.summary}</p>
+                            <p className="text-xs text-ink-400 mt-0.5 line-clamp-2 leading-relaxed">{result.summary}</p>
                           )}
                         </div>
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>

@@ -24,11 +24,11 @@ export const ArticleListBlock: React.FC<ArticleListProps> = ({ heading, descript
   <section className="space-y-6">
     {(heading || description) && (
       <div className="space-y-2">
-        {heading && <h2 className="text-2xl font-extrabold text-white tracking-tight">{heading}</h2>}
-        {description && <p className="text-sm text-slate-400">{description}</p>}
+        {heading && <h2 className="font-serif-display text-2xl sm:text-3xl font-semibold text-ink-100 tracking-tight">{heading}</h2>}
+        {description && <p className="text-sm text-ink-400">{description}</p>}
       </div>
     )}
-    <div className="divide-y divide-slate-800">
+    <div className="divide-y divide-ink-border">
       {items.map((article, idx) => (
         <article
           key={idx}
@@ -38,24 +38,24 @@ export const ArticleListBlock: React.FC<ArticleListProps> = ({ heading, descript
           {(article.category || (article.tags && article.tags.length > 0)) && (
             <div className="flex items-center gap-2 flex-wrap">
               {article.category && (
-                <span className="px-2 py-0.5 bg-sky-500/15 text-sky-300 text-[10px] font-bold rounded uppercase tracking-wider">
+                <span className="px-2 py-0.5 bg-gold/10 text-gold text-[10px] font-bold rounded uppercase tracking-wider">
                   {article.category}
                 </span>
               )}
               {article.tags?.map((tag, i) => (
-                <span key={i} className="px-2 py-0.5 bg-slate-800 text-slate-400 text-[10px] rounded">
+                <span key={i} className="px-2 py-0.5 bg-ink-elevated text-ink-400 text-[10px] rounded">
                   #{tag}
                 </span>
               ))}
             </div>
           )}
 
-          <h3 className="text-lg font-bold text-white group-hover:text-sky-300 transition-colors leading-snug">
+          <h3 className="text-lg font-semibold text-ink-100 group-hover:text-gold transition-colors leading-snug">
             {article.url || article.slug ? (
-              <a 
+              <a
                 href={article.url || `/${article.slug}`}
                 aria-label={`Read full article: ${article.title}`}
-                className="focus:outline-none focus:ring-2 focus:ring-sky-500 rounded"
+                className="focus:outline-none focus:ring-2 focus:ring-gold rounded"
               >
                 {article.title}
               </a>
@@ -65,21 +65,21 @@ export const ArticleListBlock: React.FC<ArticleListProps> = ({ heading, descript
           </h3>
 
           {article.summary && (
-            <p className="text-sm text-slate-400 leading-relaxed line-clamp-2">{article.summary}</p>
+            <p className="text-sm text-ink-400 leading-relaxed line-clamp-2">{article.summary}</p>
           )}
 
           {/* Meta row */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 font-medium">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink-400/80 font-medium">
             {article.authorName && (
-              <span className="text-slate-400 font-semibold">{article.authorName}</span>
+              <span className="text-ink-400 font-semibold">{article.authorName}</span>
             )}
             {article.publishedBs && <span>🗓 {article.publishedBs}</span>}
             {article.publishedAd && <span>({article.publishedAd})</span>}
             {article.timeNpt && <span>{article.timeNpt}</span>}
             {article.readingTime && <span>⏱ {article.readingTime} min read</span>}
-            {article.wordCount && <span>{article.wordCount.toLocaleString()} words</span>}
+            {article.wordCount && <span>{article.wordCount.toLocaleString('en-US')} words</span>}
             {article.views && (
-              <span className="text-slate-600">{article.views.toLocaleString()} views</span>
+              <span className="text-ink-400/60">{article.views.toLocaleString('en-US')} views</span>
             )}
           </div>
 

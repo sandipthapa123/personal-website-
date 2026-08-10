@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Headers, UseGua
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { BlogService } from './blog.service';
 import { PolicyGuard } from '../permissions/policy.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { RequirePolicy } from '../permissions/policy.decorator';
 import { PERMISSION_ACTIONS } from '@cms/constants';
 
@@ -53,7 +54,7 @@ export class BlogController {
   }
 
   @Post('posts')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_CREATE)
   @ApiOperation({ summary: 'Create new blog post' })
   async createPost(@Headers('x-tenant-id') tenantId: string, @Body() body: any) {
@@ -71,7 +72,7 @@ export class BlogController {
   }
 
   @Put('posts/:id')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_EDIT)
   @ApiOperation({ summary: 'Update existing blog post' })
   async updatePost(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string, @Body() body: any) {
@@ -86,7 +87,7 @@ export class BlogController {
   }
 
   @Delete('posts/:id')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_DELETE)
   @ApiOperation({ summary: 'Delete blog post' })
   async deletePost(@Headers('x-tenant-id') tenantId: string, @Param('id') id: string) {
@@ -109,7 +110,7 @@ export class BlogController {
   }
 
   @Post('categories')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_CREATE)
   @ApiOperation({ summary: 'Create new category' })
   async createCategory(@Body() body: { name: string }) {
@@ -125,7 +126,7 @@ export class BlogController {
   }
 
   @Post('tags')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_CREATE)
   @ApiOperation({ summary: 'Create new tag' })
   async createTag(@Body() body: { name: string }) {
@@ -143,7 +144,7 @@ export class BlogController {
   }
 
   @Post('poems')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_CREATE)
   @ApiOperation({ summary: 'Create new poem entry' })
   async createPoem(@Headers('x-tenant-id') tenantId: string, @Body() body: any) {

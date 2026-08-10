@@ -31,18 +31,18 @@ export const TimelineBlock: React.FC<TimelineBlockProps> = ({
 }) => {
   return (
     <section className="py-12 px-4 max-w-4xl mx-auto">
-      {title && <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-8 text-center">{title}</h2>}
-      <div className="relative border-l-2 border-sky-500 pl-6 ml-4 space-y-8">
+      {title && <h2 className="font-serif-display text-3xl font-semibold text-ink-100 mb-8 text-center">{title}</h2>}
+      <div className="relative border-l-2 border-gold/50 pl-6 ml-4 space-y-8">
         {items.map((item, idx) => (
           <div key={idx} className="relative group">
-            <span className="absolute -left-[31px] top-1 w-4 h-4 bg-sky-500 rounded-full ring-4 ring-white dark:ring-slate-900" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
+            <span className="absolute -left-[31px] top-1 w-4 h-4 bg-gold rounded-full ring-4 ring-ink" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-gold">
               {item.year}
             </span>
-            <h3 className="text-xl font-semibold text-slate-900 dark:text-white mt-1">
-              {item.role} <span className="font-normal text-slate-500">@ {item.organization}</span>
+            <h3 className="text-xl font-semibold text-ink-100 mt-1">
+              {item.role} <span className="font-normal text-ink-400">@ {item.organization}</span>
             </h3>
-            <p className="text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">{item.description}</p>
+            <p className="text-ink-400 mt-2 leading-relaxed">{item.description}</p>
           </div>
         ))}
       </div>

@@ -2,6 +2,7 @@ import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AiService } from './ai.service';
 import { PolicyGuard } from '../permissions/policy.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { RequirePolicy } from '../permissions/policy.decorator';
 import { PERMISSION_ACTIONS } from '@cms/constants';
 
@@ -11,7 +12,7 @@ export class AiController {
   constructor(private aiService: AiService) {}
 
   @Post('summarize')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.PAGES_EDIT)
   @ApiOperation({ summary: 'Generate automatic text summary for articles or research papers' })
   async summarize(@Body() body: { text: string }) {
@@ -28,7 +29,7 @@ export class AiController {
   }
 
   @Post('alt-text')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.MEDIA_UPLOAD)
   @ApiOperation({ summary: 'Generate accessible image ALT text automatically' })
   async generateAltText(@Body() body: { imageName: string }) {

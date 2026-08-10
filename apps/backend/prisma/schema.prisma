@@ -1,6 +1,6 @@
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 generator client {
@@ -12,43 +12,43 @@ generator client {
 // ----------------------------------------------------
 
 model Tenant {
-  id          String   @id @default(uuid()) @db.Uuid
-  slug        String   @unique
-  domain      String   @unique
-  name        String
-  is_active   Boolean  @default(true)
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(uuid())
+  slug       String   @unique
+  domain     String   @unique
+  name       String
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  settings       TenantSetting[]
-  tokens         DesignToken[]
-  pages          Page[]
-  menus          NavigationMenu[]
-  media          MediaFile[]
-  blocks         Block[]
-  posts          BlogPost[]
-  workflows      WorkflowDefinition[]
+  settings          TenantSetting[]
+  tokens            DesignToken[]
+  pages             Page[]
+  menus             NavigationMenu[]
+  media             MediaFile[]
+  blocks            Block[]
+  workflows         WorkflowDefinition[]
+  universal_content UniversalContent[]
 }
 
 model TenantSetting {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenant_id   String   @db.Uuid
-  category    String   // site, theme, seo, security, accessibility, analytics, storage
-  key         String
-  value       Json
-  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  id        String @id @default(uuid())
+  tenant_id String
+  category  String // site, theme, seo, security, accessibility, analytics, storage
+  key       String
+  value     String
+  tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@unique([tenant_id, category, key])
 }
 
 model FeatureFlag {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenant_id   String?  @db.Uuid
+  id          String   @id @default(uuid())
+  tenant_id   String?
   key         String   @unique
   name        String
   description String?
   is_enabled  Boolean  @default(false)
-  rules_json  Json?
+  rules_json  String?
   updated_at  DateTime @updatedAt
 }
 
@@ -56,53 +56,77 @@ model FeatureFlag {
 // 2. AUTH, ROLES & POLICY-DRIVEN PERMISSIONS
 // ----------------------------------------------------
 
-enum UserStatus {
-  ACTIVE
-  INACTIVE
-  SUSPENDED
+model User {
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  password_hash         String
+  first_name            String
+  last_name             String
+  avatar_url            String?
+  status                String    @default("ACTIVE")
+  totp_secret           String?
+  totp_enabled          Boolean   @default(false)
+  failed_login_attempts Int       @default(0)
+  locked_until          DateTime?
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  user_roles       UserRole[]
+  audit_logs       AuditLog[]
+  sessions         Session[]
+  content_authored UniversalContentAuthor[]
+  auth_tokens      AuthToken[]
+  recovery_codes   RecoveryCode[]
 }
 
-model User {
-  id            String     @id @default(uuid()) @db.Uuid
-  email         String     @unique
-  password_hash String
-  first_name    String
-  last_name     String
-  avatar_url    String?
-  status        UserStatus @default(ACTIVE)
-  totp_secret   String?
-  totp_enabled  Boolean    @default(false)
-  created_at    DateTime   @default(now())
-  updated_at    DateTime   @updatedAt
+model AuthToken {
+  id         String    @id @default(uuid())
+  user_id    String
+  token_hash String    @unique
+  purpose    String // 'PASSWORD_RESET' | 'INVITE' | 'EMAIL_CHANGE'
+  metadata   String? // JSON, e.g. { "newEmail": "..." } for EMAIL_CHANGE
+  expires_at DateTime
+  used_at    DateTime?
+  created_at DateTime  @default(now())
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  user_roles    UserRole[]
-  audit_logs    AuditLog[]
-  sessions      Session[]
+  @@index([user_id, purpose])
+}
+
+model RecoveryCode {
+  id         String    @id @default(uuid())
+  user_id    String
+  code_hash  String
+  used_at    DateTime?
+  created_at DateTime  @default(now())
+  user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
 }
 
 model Role {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @unique
+  id          String  @id @default(uuid())
+  name        String  @unique
   description String?
-  is_system   Boolean  @default(false)
+  is_system   Boolean @default(false)
 
   permissions RolePermission[]
   users       UserRole[]
 }
 
 model Permission {
-  id          String   @id @default(uuid()) @db.Uuid
-  action      String   @unique // e.g. pages:publish, media:upload
+  id          String  @id @default(uuid())
+  action      String  @unique // e.g. pages:publish, media:upload
   module      String
   description String?
 
-  roles       RolePermission[]
-  policies    Policy[]
+  roles    RolePermission[]
+  policies Policy[]
 }
 
 model RolePermission {
-  role_id       String     @db.Uuid
-  permission_id String     @db.Uuid
+  role_id       String
+  permission_id String
   role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
   permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
 
@@ -110,16 +134,16 @@ model RolePermission {
 }
 
 model Policy {
-  id            String     @id @default(uuid()) @db.Uuid
-  permission_id String     @db.Uuid
+  id            String     @id @default(uuid())
+  permission_id String
   name          String
-  condition     Json
+  condition     String
   permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
 }
 
 model UserRole {
-  user_id String @db.Uuid
-  role_id String @db.Uuid
+  user_id String
+  role_id String
   user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   role    Role   @relation(fields: [role_id], references: [id], onDelete: Cascade)
 
@@ -127,24 +151,25 @@ model UserRole {
 }
 
 model Session {
-  id            String   @id @default(uuid()) @db.Uuid
-  user_id       String   @db.Uuid
-  refresh_token String   @unique
+  id            String    @id @default(uuid())
+  user_id       String
+  token_hash    String    @unique // sha256 hash of the live credential (admin session cookie or API access token) identifying this session
   user_agent    String?
   ip_address    String?
   expires_at    DateTime
-  created_at    DateTime @default(now())
-  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  revoked_at    DateTime?
+  created_at    DateTime  @default(now())
+  user          User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenant_id   String?  @db.Uuid
-  user_id     String?  @db.Uuid
+  id          String   @id @default(uuid())
+  tenant_id   String?
+  user_id     String?
   action      String
   entity_type String
   entity_id   String?
-  payload     Json?
+  payload     String?
   ip_address  String?
   created_at  DateTime @default(now())
   user        User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
@@ -155,14 +180,14 @@ model AuditLog {
 // ----------------------------------------------------
 
 model DesignToken {
-  id                     String   @id @default(uuid()) @db.Uuid
-  tenant_id              String   @db.Uuid
-  category               String   // colors, typography, spacing, radius, elevation
-  token_name             String   // e.g. color-primary-500
-  token_value            String
-  dark_value             String?
-  unit                   String?
-  tenant                 Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  id          String  @id @default(uuid())
+  tenant_id   String
+  category    String // colors, typography, spacing, radius, elevation
+  token_name  String // e.g. color-primary-500
+  token_value String
+  dark_value  String?
+  unit        String?
+  tenant      Tenant  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@unique([tenant_id, category, token_name])
 }
@@ -172,135 +197,126 @@ model DesignToken {
 // ----------------------------------------------------
 
 model WorkflowDefinition {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenant_id   String   @db.Uuid
-  entity_type String   // page, blog_post, block
+  id          String @id @default(uuid())
+  tenant_id   String
+  entity_type String // page, blog_post, block
   name        String
-  states_json Json     // State machine states & transition rules
-  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  states_json String // State machine states & transition rules
+  tenant      Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 }
 
 // ----------------------------------------------------
 // 5. LAYOUTS, REGIONS, BLOCKS & PAGES
 // ----------------------------------------------------
 
-enum ContentStatus {
-  DRAFT
-  PREVIEW
-  REVIEW
-  APPROVED
-  SCHEDULED
-  PUBLISHED
-  ARCHIVED
-}
-
 model Layout {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @unique
-  slug        String   @unique
-  regions     Region[]
-  pages       Page[]
+  id      String   @id @default(uuid())
+  name    String   @unique
+  slug    String   @unique
+  regions Region[]
+  pages   Page[]
 }
 
 model Region {
-  id        String   @id @default(uuid()) @db.Uuid
-  layout_id String   @db.Uuid
-  key       String   // header, sidebar, main, footer
+  id        String @id @default(uuid())
+  layout_id String
+  key       String // header, sidebar, main, footer
   name      String
-  layout    Layout   @relation(fields: [layout_id], references: [id], onDelete: Cascade)
+  layout    Layout @relation(fields: [layout_id], references: [id], onDelete: Cascade)
 
   page_blocks PageRegionBlock[]
 }
 
 model BlockDefinition {
-  id              String   @id @default(uuid()) @db.Uuid
-  type            String   @unique
+  id              String  @id @default(uuid())
+  type            String  @unique
   name            String
   category        String
-  prop_schema     Json
-  default_props   Json
-  allowed_regions String[]
+  prop_schema     String
+  default_props   String
+  allowed_regions String
   blocks          Block[]
 }
 
 model Block {
-  id                  String          @id @default(uuid()) @db.Uuid
-  tenant_id           String          @db.Uuid
-  block_definition_id String          @db.Uuid
+  id                  String    @id @default(uuid())
+  tenant_id           String
+  block_definition_id String
   name                String
-  json_config         Json
-  style_config        Json?
-  visibility_config   Json?
-  permission_rules    Json?
-  animations_config   Json?
-  responsive_config   Json?
-  status              ContentStatus   @default(DRAFT)
-  version             Int             @default(1)
+  json_config         String
+  style_config        String?
+  visibility_config   String?
+  permission_rules    String?
+  animations_config   String?
+  responsive_config   String?
+  status              String    @default("DRAFT")
+  version             Int       @default(1)
   deleted_at          DateTime?
-  created_at          DateTime        @default(now())
-  updated_at          DateTime        @updatedAt
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
 
-  tenant              Tenant          @relation(fields: [tenant_id], references: [id])
-  definition          BlockDefinition @relation(fields: [block_definition_id], references: [id])
-  versions            BlockVersion[]
-  page_placements     PageRegionBlock[]
+  tenant          Tenant            @relation(fields: [tenant_id], references: [id])
+  definition      BlockDefinition   @relation(fields: [block_definition_id], references: [id])
+  versions        BlockVersion[]
+  page_placements PageRegionBlock[]
 }
 
 model BlockVersion {
-  id           String   @id @default(uuid()) @db.Uuid
-  block_id     String   @db.Uuid
+  id           String   @id @default(uuid())
+  block_id     String
   version      Int
-  json_config  Json
-  style_config Json?
+  json_config  String
+  style_config String?
   created_by   String?
   created_at   DateTime @default(now())
   block        Block    @relation(fields: [block_id], references: [id], onDelete: Cascade)
 }
 
 model Page {
-  id            String        @id @default(uuid()) @db.Uuid
-  tenant_id     String        @db.Uuid
-  layout_id     String        @db.Uuid
-  slug          String
-  title         String
-  locale        String        @default("en")
-  status        ContentStatus @default(DRAFT)
-  version       Int           @default(1)
-  scheduled_at  DateTime?
-  published_at  DateTime?
-  seo_metadata  Json?
-  deleted_at    DateTime?
-  created_at    DateTime      @default(now())
-  updated_at    DateTime      @updatedAt
+  id           String    @id @default(uuid())
+  tenant_id    String
+  layout_id    String
+  slug         String
+  title        String
+  locale       String    @default("en")
+  status       String    @default("DRAFT")
+  version      Int       @default(1)
+  scheduled_at DateTime?
+  published_at DateTime?
+  seo_metadata String?
+  deleted_at   DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
 
-  tenant        Tenant        @relation(fields: [tenant_id], references: [id])
-  layout        Layout        @relation(fields: [layout_id], references: [id])
+  tenant        Tenant            @relation(fields: [tenant_id], references: [id])
+  layout        Layout            @relation(fields: [layout_id], references: [id])
   versions      PageVersion[]
   region_blocks PageRegionBlock[]
 
   @@unique([tenant_id, slug, locale])
+  @@index([slug])
 }
 
 model PageVersion {
-  id          String   @id @default(uuid()) @db.Uuid
-  page_id     String   @db.Uuid
+  id          String   @id @default(uuid())
+  page_id     String
   version     Int
-  layout_json Json
+  layout_json String
   created_by  String?
   created_at  DateTime @default(now())
   page        Page     @relation(fields: [page_id], references: [id], onDelete: Cascade)
 }
 
 model PageRegionBlock {
-  id        String @id @default(uuid()) @db.Uuid
-  page_id   String @db.Uuid
-  region_id String @db.Uuid
-  block_id  String @db.Uuid
+  id        String @id @default(uuid())
+  page_id   String
+  region_id String
+  block_id  String
   order     Int
 
-  page      Page   @relation(fields: [page_id], references: [id], onDelete: Cascade)
-  region    Region @relation(fields: [region_id], references: [id], onDelete: Cascade)
-  block     Block  @relation(fields: [block_id], references: [id], onDelete: Cascade)
+  page   Page   @relation(fields: [page_id], references: [id], onDelete: Cascade)
+  region Region @relation(fields: [region_id], references: [id], onDelete: Cascade)
+  block  Block  @relation(fields: [block_id], references: [id], onDelete: Cascade)
 }
 
 // ----------------------------------------------------
@@ -308,218 +324,297 @@ model PageRegionBlock {
 // ----------------------------------------------------
 
 model NavigationMenu {
-  id         String               @id @default(uuid()) @db.Uuid
-  tenant_id  String               @db.Uuid
-  location   String
-  name       String
-  tenant     Tenant               @relation(fields: [tenant_id], references: [id])
-  items      NavigationMenuItem[]
+  id        String               @id @default(uuid())
+  tenant_id String
+  location  String
+  name      String
+  tenant    Tenant               @relation(fields: [tenant_id], references: [id])
+  items     NavigationMenuItem[]
 }
 
 model NavigationMenuItem {
-  id           String             @id @default(uuid()) @db.Uuid
-  menu_id      String             @db.Uuid
-  parent_id    String?            @db.Uuid
-  label        String
-  url          String
-  icon         String?
-  target       String             @default("_self")
-  order        Int
-  visibility   Json?
-  menu         NavigationMenu     @relation(fields: [menu_id], references: [id], onDelete: Cascade)
-  parent       NavigationMenuItem?@relation("MenuHierarchy", fields: [parent_id], references: [id])
-  children     NavigationMenuItem[]@relation("MenuHierarchy")
+  id         String               @id @default(uuid())
+  menu_id    String
+  parent_id  String?
+  label      String
+  url        String
+  icon       String?
+  target     String               @default("_self")
+  order      Int
+  visibility String?
+  menu       NavigationMenu       @relation(fields: [menu_id], references: [id], onDelete: Cascade)
+  parent     NavigationMenuItem?  @relation("MenuHierarchy", fields: [parent_id], references: [id])
+  children   NavigationMenuItem[] @relation("MenuHierarchy")
 }
 
 model MediaFile {
-  id             String   @id @default(uuid()) @db.Uuid
-  tenant_id      String   @db.Uuid
-  filename       String
-  original_name  String
-  mime_type      String
-  size_bytes     BigInt
-  storage_key    String   @unique
-  folder         String   @default("/")
-  dimensions     Json?
-  variants_json  Json?
-  alt_text       String?
-  caption        String?
-  created_at     DateTime @default(now())
+  id            String   @id @default(uuid())
+  tenant_id     String
+  filename      String
+  original_name String
+  mime_type     String
+  size_bytes    BigInt
+  storage_key   String   @unique
+  folder        String   @default("/")
+  dimensions    String?
+  variants_json String?
+  alt_text      String?
+  caption       String?
+  created_at    DateTime @default(now())
 
-  tenant         Tenant   @relation(fields: [tenant_id], references: [id])
+  tenant         Tenant         @relation(fields: [tenant_id], references: [id])
+  content_usages ContentMedia[]
 }
 
 // ----------------------------------------------------
-// 7. CONTENT DOMAINS (BLOG, RESEARCH, POEMS, MEDIA, SERVICES)
+// 7. UNIVERSAL CONTENT ENGINE (SINGLE SOURCE OF TRUTH)
 // ----------------------------------------------------
 
-model Series {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @unique
-  slug        String   @unique
-  description String?
-  posts       BlogPost[]
-  poems       Poem[]
-}
+model UniversalContent {
+  id                   String  @id @default(uuid())
+  tenant_id            String
+  slug                 String  @unique
+  slug_mode            String  @default("AUTO")
+  title                String
+  summary              String?
+  content              String
+  cover_image          String?
+  content_type         String // 'Article', 'Research', 'Publication', 'Event', 'Poem', 'Project', etc.
+  locale               String  @default("en")
+  translation_group_id String? // Links Nepali and English versions of same content
+  status               String  @default("DRAFT")
+  visibility           String  @default("PUBLIC")
+  password             String?
+  is_sticky            Boolean @default(false)
+  allow_comments       Boolean @default(true)
+  post_format          String  @default("standard")
+  views                Int     @default(0)
+  word_count           Int     @default(0)
+  reading_time         Int     @default(1)
 
-model BlogPost {
-  id           String        @id @default(uuid()) @db.Uuid
-  tenant_id    String        @db.Uuid
-  series_id    String?       @db.Uuid
-  slug         String        @unique
-  title        String
-  subtitle     String?
-  cover_image  String?
-  summary      String?
-  content      String        @db.Text
-  locale       String        @default("en")
-  status       ContentStatus @default(DRAFT)
-  reading_time Int           @default(0)
-  word_count   Int           @default(0)
-  views        Int           @default(0)
-  unique_views Int           @default(0)
-  author_name  String        @default("Sandip Thapa")
-  author_url   String        @default("https://thapasandip.com.np/about")
+  seo_metadata         String? // metaTitle, metaDescription, canonicalUrl, ogImage, jsonLd
+  custom_fields        String? // citations, DOIs, event dates, pdfUrl, partners, externalLinks, timeline
+  accessibility_status String? // score, wcagLevel, compliant
+
+  version      Int       @default(1)
   published_at DateTime?
-  seo_metadata Json?
-  created_at   DateTime      @default(now())
-  updated_at   DateTime      @updatedAt
+  scheduled_at DateTime?
+  deleted_at   DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
 
-  tenant       Tenant        @relation(fields: [tenant_id], references: [id])
-  series       Series?       @relation(fields: [series_id], references: [id])
-  categories   PostCategory[]
-  tags         PostTag[]
+  tenant     Tenant                   @relation(fields: [tenant_id], references: [id])
+  categories ContentCategory[]
+  tags       ContentTag[]
+  topics     ContentTopic[]
+  authors    UniversalContentAuthor[]
+  media      ContentMedia[]
+  revisions  ContentRevision[]
+
+  // Self-referential related content
+  related_to   ContentRelation[] @relation("SourceContent")
+  related_from ContentRelation[] @relation("TargetContent")
+
+  @@index([status])
+  @@index([content_type])
+  @@index([locale])
+  @@index([published_at])
 }
 
 model Category {
-  id    String         @id @default(uuid()) @db.Uuid
-  name  String         @unique
-  slug  String         @unique
-  posts PostCategory[]
+  id              String   @id @default(uuid())
+  name            String   @unique
+  slug            String   @unique
+  description     String?
+  parent_id       String?
+  display_order   Int      @default(0)
+  icon            String?
+  status          String   @default("ACTIVE")
+  seo_title       String?
+  seo_description String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  parent   Category?         @relation("CategoryHierarchy", fields: [parent_id], references: [id])
+  children Category[]        @relation("CategoryHierarchy")
+  content  ContentCategory[]
 }
 
 model Tag {
-  id    String    @id @default(uuid()) @db.Uuid
-  name  String    @unique
-  slug  String    @unique
-  posts PostTag[]
+  id      String       @id @default(uuid())
+  name    String       @unique
+  slug    String       @unique
+  content ContentTag[]
 }
 
-model PostCategory {
-  post_id     String   @db.Uuid
-  category_id String   @db.Uuid
-  post        BlogPost @relation(fields: [post_id], references: [id], onDelete: Cascade)
-  category    Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
-  @@id([post_id, category_id])
+model Topic {
+  id      String         @id @default(uuid())
+  name    String         @unique
+  slug    String         @unique
+  content ContentTopic[]
 }
 
-model PostTag {
-  post_id String   @db.Uuid
-  tag_id  String   @db.Uuid
-  post    BlogPost @relation(fields: [post_id], references: [id], onDelete: Cascade)
-  tag     Tag      @relation(fields: [tag_id], references: [id], onDelete: Cascade)
-  @@id([post_id, tag_id])
+// Join tables for Content Relationships
+model ContentCategory {
+  content_id  String
+  category_id String
+  is_primary  Boolean          @default(false)
+  content     UniversalContent @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  category    Category         @relation(fields: [category_id], references: [id], onDelete: Cascade)
+
+  @@id([content_id, category_id])
 }
 
-model Publication {
-  id             String    @id @default(uuid()) @db.Uuid
-  tenant_id      String?   @db.Uuid
-  title          String
-  subtitle       String?
-  authors        String[]
-  abstract       String    @db.Text
-  type           String    @default("journal") // journal, book_chapter, conference, book
-  journal        String?
-  publisher      String?
-  doi            String?   @unique
-  citation_apa   String?
-  citation_mla   String?
-  citation_chi   String?
-  citation_oscola String?
-  citation_bluebook String?
-  citation_bibtex String?
-  published_date DateTime?
-  pdf_url        String?
-  created_at     DateTime  @default(now())
+model ContentTag {
+  content_id String
+  tag_id     String
+  content    UniversalContent @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  tag        Tag              @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@id([content_id, tag_id])
 }
 
-model ResearchProject {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenant_id   String?  @db.Uuid
-  title       String
-  slug        String   @unique
-  type        String   @default("project") // project, working_paper, policy_brief, report
-  status      String   @default("active")
-  description String   @db.Text
-  partners    String[]
-  timeline    String?
-  outputs     Json?
-  created_at  DateTime @default(now())
+model ContentTopic {
+  content_id String
+  topic_id   String
+  content    UniversalContent @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  topic      Topic            @relation(fields: [topic_id], references: [id], onDelete: Cascade)
+
+  @@id([content_id, topic_id])
 }
 
-model Poem {
-  id           String        @id @default(uuid()) @db.Uuid
-  tenant_id    String        @db.Uuid
-  series_id    String?       @db.Uuid
-  slug         String        @unique
-  title        String
-  collection   String        @default("General")
-  content      String        @db.Text
-  author_name  String        @default("Sandip Thapa")
-  published_at DateTime?
-  created_at   DateTime      @default(now())
-  series       Series?       @relation(fields: [series_id], references: [id])
+model UniversalContentAuthor {
+  content_id String
+  user_id    String
+  order      Int              @default(0)
+  content    UniversalContent @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  user       User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([content_id, user_id])
 }
 
-model ServiceItem {
-  id          String   @id @default(uuid()) @db.Uuid
-  key         String   @unique
-  title       String
-  description String   @db.Text
-  icon        String?
-  order       Int      @default(0)
+model ContentMedia {
+  content_id String
+  media_id   String
+  usage_type String           @default("gallery") // featured, gallery, document
+  order      Int              @default(0)
+  content    UniversalContent @relation(fields: [content_id], references: [id], onDelete: Cascade)
+  media      MediaFile        @relation(fields: [media_id], references: [id], onDelete: Cascade)
+
+  @@id([content_id, media_id, usage_type])
 }
 
-model Testimonial {
-  id         String   @id @default(uuid()) @db.Uuid
-  name       String
-  role       String
-  organization String?
-  quote      String   @db.Text
-  avatar_url String?
+model ContentRelation {
+  source_id     String
+  target_id     String
+  relation_type String           @default("related") // related, citation, prerequisite, part_of
+  order         Int              @default(0)
+  source        UniversalContent @relation("SourceContent", fields: [source_id], references: [id], onDelete: Cascade)
+  target        UniversalContent @relation("TargetContent", fields: [target_id], references: [id], onDelete: Cascade)
+
+  @@id([source_id, target_id])
+}
+
+model ContentRevision {
+  id            String           @id @default(uuid())
+  content_id    String
+  version       Int
+  title         String
+  content       String
+  snapshot_json String
+  created_by    String?
+  created_at    DateTime         @default(now())
+  content_ref   UniversalContent @relation(fields: [content_id], references: [id], onDelete: Cascade)
 }
 
 // ----------------------------------------------------
-// 8. PLUGINS, ANALYTICS & SEARCH INDEX
+// 8. CONTACT & INQUIRY TICKETS
+// ----------------------------------------------------
+
+model ContactTicket {
+  id         String   @id @default(uuid())
+  name       String
+  email      String
+  subject    String?
+  message    String
+  status     String   @default("NEW")
+  metadata   String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  replies TicketMessage[]
+}
+
+model TicketMessage {
+  id         String        @id @default(uuid())
+  ticket_id  String
+  sender     String // 'USER' | 'ADMIN'
+  message    String
+  created_at DateTime      @default(now())
+  ticket     ContactTicket @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
+}
+
+// ----------------------------------------------------
+// 9. NEWSLETTER SYSTEM
+// ----------------------------------------------------
+
+model NewsletterSubscriber {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  first_name    String?
+  last_name     String?
+  status        String   @default("SUBSCRIBED")
+  metadata      String?
+  subscribed_at DateTime @default(now())
+  updated_at    DateTime @updatedAt
+}
+
+model NewsletterCampaign {
+  id           String    @id @default(uuid())
+  subject      String
+  html_content String
+  status       String    @default("DRAFT") // DRAFT, SCHEDULED, SENDING, SENT, FAILED
+  recipients   Int       @default(0)
+  scheduled_at DateTime?
+  sent_at      DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+}
+
+// ----------------------------------------------------
+// 10. PLUGINS, ANALYTICS & SEARCH INDEX
 // ----------------------------------------------------
 
 model Plugin {
-  id           String   @id @default(uuid()) @db.Uuid
+  id           String   @id @default(uuid())
   name         String   @unique
   version      String
   is_active    Boolean  @default(false)
-  config_json  Json?
+  config_json  String?
   installed_at DateTime @default(now())
 }
 
 model AnalyticsEvent {
-  id         String   @id @default(uuid()) @db.Uuid
-  tenant_id  String?  @db.Uuid
-  event_type String
+  id         String   @id @default(uuid())
+  tenant_id  String?
+  event_type String // page_view, search, download, click
   path       String
   referrer   String?
   query      String?
   ip_hash    String?
+  user_agent String?
+  country    String?
+  city       String?
   timestamp  DateTime @default(now())
 }
 
 model SearchIndex {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenant_id   String?  @db.Uuid
+  id          String   @id @default(uuid())
+  tenant_id   String?
   entity_type String
-  entity_id   String   @db.Uuid
+  entity_id   String
   title       String
-  content     String   @db.Text
+  content     String
   locale      String   @default("en")
   url         String
   updated_at  DateTime @updatedAt

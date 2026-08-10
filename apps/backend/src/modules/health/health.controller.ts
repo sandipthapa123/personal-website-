@@ -9,7 +9,7 @@ export class HealthController {
   constructor(private prisma: PrismaService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Operational health checks for PostgreSQL, Redis, Queues, Storage, RAM & CPU' })
+  @ApiOperation({ summary: 'Operational health checks for the database, storage, RAM & CPU' })
   async checkHealth() {
     let dbStatus = 'healthy';
     let dbResponseMs = 0;
@@ -34,19 +34,19 @@ export class HealthController {
         database: {
           status: dbStatus,
           responseTimeMs: dbResponseMs,
-          engine: 'PostgreSQL',
+          engine: 'SQLite',
         },
         cache: {
-          status: 'healthy',
-          driver: 'Redis / In-Memory',
+          status: 'not_configured',
+          driver: 'In-Memory (no Redis integration present)',
         },
         queue: {
-          status: 'healthy',
-          driver: 'BullMQ',
+          status: 'not_configured',
+          driver: 'None (no queue integration present)',
         },
         storage: {
           status: 'healthy',
-          driver: 'LocalStorageDriver / R2',
+          driver: 'LocalStorageDriver',
         },
       },
       systemMetrics: {

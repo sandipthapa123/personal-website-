@@ -20,13 +20,13 @@ export interface PublicationListProps {
 export const PublicationListBlock: React.FC<PublicationListProps> = ({ heading, items = [] }) => (
   <section className="space-y-6">
     {heading && (
-      <h2 className="text-2xl font-extrabold text-white tracking-tight">{heading}</h2>
+      <h2 className="font-serif-display text-2xl sm:text-3xl font-semibold text-ink-100 tracking-tight">{heading}</h2>
     )}
     <div className="space-y-4">
       {items.map((pub, idx) => (
         <article
           key={idx}
-          className="p-6 bg-slate-900 border border-slate-800 rounded-xl space-y-3 hover:border-emerald-800/50 transition-all"
+          className="p-6 bg-ink-elevated border border-ink-border rounded-2xl space-y-3 hover:border-emerald-700/40 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 transition-all duration-200"
         >
           <div className="flex items-center justify-between flex-wrap gap-2">
             {(pub.journal || pub.publisher) && (
@@ -41,9 +41,9 @@ export const PublicationListBlock: React.FC<PublicationListProps> = ({ heading, 
             )}
           </div>
 
-          <h3 className="text-lg font-bold text-white leading-snug">
+          <h3 className="text-lg font-semibold text-ink-100 leading-snug">
             {pub.url ? (
-              <a 
+              <a
                 href={pub.url}
                 aria-label={`View publication: ${pub.title}`}
                 className="hover:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded transition-colors"
@@ -56,11 +56,11 @@ export const PublicationListBlock: React.FC<PublicationListProps> = ({ heading, 
           </h3>
 
           {pub.authors && pub.authors.length > 0 && (
-            <p className="text-xs text-slate-400">Authors: {pub.authors.join(', ')}</p>
+            <p className="text-xs text-ink-400">Authors: {pub.authors.join(', ')}</p>
           )}
 
           {pub.citationApa && (
-            <div className="p-3 bg-slate-950 rounded-lg text-[11px] font-mono text-slate-400 border border-slate-800 leading-relaxed">
+            <div className="p-3 bg-ink rounded-lg text-[11px] font-mono text-ink-400 border border-ink-border leading-relaxed">
               APA: {pub.citationApa}
             </div>
           )}
@@ -71,7 +71,7 @@ export const PublicationListBlock: React.FC<PublicationListProps> = ({ heading, 
                 href={`https://doi.org/${pub.doi}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[11px] text-sky-400 hover:text-sky-300 font-semibold transition-colors"
+                className="text-[11px] text-gold hover:brightness-110 font-semibold transition-colors"
               >
                 DOI: {pub.doi}
               </a>

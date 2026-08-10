@@ -2,6 +2,7 @@ import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { NotificationService, INotificationPayload } from './notification.service';
 import { PolicyGuard } from '../permissions/policy.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { RequirePolicy } from '../permissions/policy.decorator';
 import { PERMISSION_ACTIONS } from '@cms/constants';
 
@@ -11,7 +12,7 @@ export class NotificationController {
   constructor(private notificationService: NotificationService) {}
 
   @Post('send')
-  @UseGuards(PolicyGuard)
+  @UseGuards(AuthGuard('jwt'), PolicyGuard)
   @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Dispatch notification message across email/in-app channels' })
   async sendNotification(@Body() body: INotificationPayload) {

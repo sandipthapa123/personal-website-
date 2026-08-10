@@ -11,7 +11,9 @@ interface DynamicPageProps {
   };
 }
 
-async function fetchPageSchema(slugArray: string[]) {
+import { cache } from 'react';
+
+const fetchPageSchema = cache(async (slugArray: string[]) => {
   const pageSlug = slugArray?.join('/') || 'home';
   const apiClient = new CmsApiClient({
     baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000',
@@ -23,7 +25,7 @@ async function fetchPageSchema(slugArray: string[]) {
   } catch (err) {
     return { pageSlug, data: null };
   }
-}
+});
 
 export async function generateMetadata({ params }: DynamicPageProps): Promise<Metadata> {
   if (params.slug?.includes('admin')) {
@@ -92,21 +94,9 @@ export default async function DynamicPage({ params }: DynamicPageProps) {
     },
   };
 
-  // If backend returns status === 'EMPTY' or published === false, render WCAG 2.2 AAA Empty Placeholder
+  // If backend returns status === 'EMPTY' or published === false, render 404
   if (rawData?.status === 'EMPTY' || rawData?.published === false || rawData?.page?.status === 'EMPTY') {
-    return (
-      <>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-        <EmptyPagePlaceholder
-          title={rawData.title || rawData.page?.title || pageSlug}
-          slug={pageSlug}
-          message={rawData.message}
-        />
-      </>
-    );
+    notFound();
   }
 
   if (data) {
@@ -122,17 +112,5 @@ export default async function DynamicPage({ params }: DynamicPageProps) {
   }
 
   // Fallback for valid CMS pages when backend payload has no content items
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <EmptyPagePlaceholder
-        title={pageSlug.replace(/-/g, ' ').toUpperCase()}
-        slug={pageSlug}
-        message="There is currently no published content available for this page. Content will appear here once it has been reviewed and published."
-      />
-    </>
-  );
+  notFound();
 }
