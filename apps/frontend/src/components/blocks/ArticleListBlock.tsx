@@ -1,4 +1,5 @@
 import React from 'react';
+import { CalendarIcon, ClockIcon } from '../ui/Icon';
 
 export interface ArticleListProps {
   heading?: string;
@@ -54,7 +55,6 @@ export const ArticleListBlock: React.FC<ArticleListProps> = ({ heading, descript
             {article.url || article.slug ? (
               <a
                 href={article.url || `/${article.slug}`}
-                aria-label={`Read full article: ${article.title}`}
                 className="focus:outline-none focus:ring-2 focus:ring-gold rounded"
               >
                 {article.title}
@@ -73,10 +73,14 @@ export const ArticleListBlock: React.FC<ArticleListProps> = ({ heading, descript
             {article.authorName && (
               <span className="text-ink-400 font-semibold">{article.authorName}</span>
             )}
-            {article.publishedBs && <span>🗓 {article.publishedBs}</span>}
+            {article.publishedBs && (
+              <span className="inline-flex items-center gap-1"><CalendarIcon className="text-[10px]" /> {article.publishedBs}</span>
+            )}
             {article.publishedAd && <span>({article.publishedAd})</span>}
             {article.timeNpt && <span>{article.timeNpt}</span>}
-            {article.readingTime && <span>⏱ {article.readingTime} min read</span>}
+            {article.readingTime && (
+              <span className="inline-flex items-center gap-1"><ClockIcon className="text-[10px]" /> {article.readingTime} min read</span>
+            )}
             {article.wordCount && <span>{article.wordCount.toLocaleString('en-US')} words</span>}
             {article.views && (
               <span className="text-ink-400/60">{article.views.toLocaleString('en-US')} views</span>

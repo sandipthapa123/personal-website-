@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { slugify, calculateReadingTimeMinutes } from '@cms/utilities';
+import { SlugGeneratorService } from '../seo/slug-generator.service';
 
 export interface IUniversalContentItem {
   id?: string;
@@ -30,7 +31,43 @@ export interface IUniversalContentItem {
 
 @Injectable()
 export class UniversalContentService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private slugGenerator: SlugGeneratorService,
+  ) {}
+
+  /** True for a non-empty, already-clean, ASCII-only slug — safe to use as-is. */
+  private isValidEnglishSlug(candidate?: string): boolean {
+    if (!candidate) return false;
+    return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(candidate.trim());
+  }
+
+  /**
+   * Resolves the slug to persist for a piece of content. A candidate slug that
+   * already looks like a clean English slug is trusted as-is (e.g. a manual
+   * edit, or a slug the "Generate English Slug" button already translated
+   * client-side) — this avoids re-translating on every save. Anything missing,
+   * empty, or non-English (Nepali title with no candidate/garbage candidate)
+   * is regenerated through the translate-and-slugify pipeline and then made
+   * unique against existing content.
+   */
+  private async resolveSlug(candidateSlug: string | undefined, title: string | undefined, contentId?: string): Promise<string> {
+    if (candidateSlug) {
+      const cleaned = slugify(candidateSlug);
+      if (this.isValidEnglishSlug(cleaned)) {
+        return this.slugGenerator.ensureUniqueSlug(cleaned, 'default-tenant-id', contentId);
+      }
+    }
+
+    let effectiveTitle = title;
+    if (!effectiveTitle && contentId) {
+      const existing = await this.prisma.universalContent.findUnique({ where: { id: contentId }, select: { title: true } });
+      effectiveTitle = existing?.title;
+    }
+
+    const generated = await this.slugGenerator.generateSlug(effectiveTitle || candidateSlug || 'untitled');
+    return this.slugGenerator.ensureUniqueSlug(generated, 'default-tenant-id', contentId);
+  }
 
   // ----------------------------------------------------
   // CATEGORIES MANAGEMENT
@@ -189,6 +226,7 @@ export class UniversalContentService {
     
     // We need a tenant id. If not provided, use default
     let tenantId = dto.tenantId || 'default-tenant-id';
+    const resolvedSlug = await this.resolveSlug(dto.slug, title);
 
     const created = await this.prisma.universalContent.create({
       data: {
@@ -199,7 +237,7 @@ export class UniversalContentService {
           }
         },
         title,
-        slug: dto.slug ? slugify(dto.slug) : slugify(title),
+        slug: resolvedSlug,
         slug_mode: dto.slugMode || 'AUTO',
         summary: dto.summary || '',
         content: dto.content || '',
@@ -226,7 +264,7 @@ export class UniversalContentService {
   async updateContent(id: string, dto: Partial<IUniversalContentItem>) {
     const data: any = {};
     if (dto.title !== undefined) data.title = dto.title;
-    if (dto.slug !== undefined) data.slug = slugify(dto.slug);
+    if (dto.slug !== undefined) data.slug = await this.resolveSlug(dto.slug, dto.title, id);
     if (dto.summary !== undefined) data.summary = dto.summary;
     if (dto.content !== undefined) {
       data.content = dto.content;

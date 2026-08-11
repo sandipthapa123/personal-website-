@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ACCESSIBILITY_CONSTANTS } from '@cms/accessibility';
+import { AccessibilityIcon, CloseIcon } from '../ui/Icon';
 
 export const AccessibilityToolbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -53,43 +54,43 @@ export const AccessibilityToolbar: React.FC = () => {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-expanded={isOpen}
         aria-label="Toggle Accessibility Controls Toolbar"
-        className="w-12 h-12 bg-sky-600 hover:bg-sky-700 text-white rounded-full shadow-2xl flex items-center justify-center text-xl focus-visible:ring"
+        className="w-12 h-12 bg-gold hover:brightness-110 text-ink rounded-full shadow-2xl shadow-black/30 flex items-center justify-center text-xl transition-all focus-visible:ring"
       >
-        ♿
+        <AccessibilityIcon className="text-2xl" />
       </button>
 
       {isOpen && (
         <div
           role="region"
           aria-label="Accessibility Preferences Panel"
-          className="absolute bottom-16 right-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-2xl w-80 space-y-4 text-sm text-slate-800 dark:text-slate-200"
+          className="absolute bottom-16 right-0 bg-ink-elevated border border-ink-border p-5 rounded-2xl shadow-2xl shadow-black/40 w-80 space-y-4 text-sm text-ink-100"
         >
-          <div className="flex items-center justify-between border-b pb-2 border-slate-200 dark:border-slate-800">
-            <h3 className="font-bold text-slate-900 dark:text-white">Accessibility Controls</h3>
-            <button onClick={() => setIsOpen(false)} className="text-xs font-semibold px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded">
-              ✕ Close
+          <div className="flex items-center justify-between border-b pb-2 border-ink-border">
+            <h3 className="font-serif-display font-semibold text-ink-100">Accessibility Controls</h3>
+            <button onClick={() => setIsOpen(false)} className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 bg-ink border border-ink-border rounded hover:border-gold/40">
+              <CloseIcon className="text-[10px]" /> Close
             </button>
           </div>
 
           {/* Font Size Scaling */}
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase">Text Scale ({fontSize}%)</label>
+            <label className="text-xs font-semibold text-ink-400 uppercase">Text Scale ({fontSize}%)</label>
             <div className="flex gap-2">
               <button
                 onClick={() => { setFontSize((s) => Math.max(90, s - 10)); announce('Font size decreased'); }}
-                className="flex-1 py-1 bg-slate-100 dark:bg-slate-800 rounded font-bold"
+                className="flex-1 py-1 bg-ink border border-ink-border rounded font-bold hover:border-gold/40"
               >
                 A-
               </button>
               <button
                 onClick={() => { setFontSize(100); announce('Font size reset'); }}
-                className="flex-1 py-1 bg-slate-100 dark:bg-slate-800 rounded font-bold"
+                className="flex-1 py-1 bg-ink border border-ink-border rounded font-bold hover:border-gold/40"
               >
                 Reset
               </button>
               <button
                 onClick={() => { setFontSize((s) => Math.min(150, s + 10)); announce('Font size increased'); }}
-                className="flex-1 py-1 bg-slate-100 dark:bg-slate-800 rounded font-bold"
+                className="flex-1 py-1 bg-ink border border-ink-border rounded font-bold hover:border-gold/40"
               >
                 A+
               </button>
@@ -98,11 +99,11 @@ export const AccessibilityToolbar: React.FC = () => {
 
           {/* Theme Mode */}
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-500 uppercase">Color Theme</label>
+            <label className="text-xs font-semibold text-ink-400 uppercase">Color Theme</label>
             <div className="flex gap-2 text-xs">
               <button
                 onClick={() => { setThemeMode('default'); announce('Default light theme activated'); }}
-                className={`flex-1 py-1.5 rounded border ${themeMode === 'default' ? 'border-sky-600 font-bold' : 'border-slate-200'}`}
+                className={`flex-1 py-1.5 rounded border bg-ink text-ink-100 ${themeMode === 'default' ? 'border-gold font-bold' : 'border-ink-border'}`}
               >
                 Light
               </button>
@@ -114,7 +115,7 @@ export const AccessibilityToolbar: React.FC = () => {
               </button>
               <button
                 onClick={() => { setThemeMode('dark'); announce('Dark mode theme activated'); }}
-                className={`flex-1 py-1.5 bg-slate-950 text-white rounded border ${themeMode === 'dark' ? 'border-sky-400 font-bold' : 'border-slate-800'}`}
+                className={`flex-1 py-1.5 bg-ink text-ink-100 rounded border ${themeMode === 'dark' ? 'border-gold font-bold' : 'border-ink-border'}`}
               >
                 Dark
               </button>
@@ -122,14 +123,14 @@ export const AccessibilityToolbar: React.FC = () => {
           </div>
 
           {/* Dyslexic Font & High Contrast */}
-          <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+          <div className="space-y-2 pt-2 border-t border-ink-border">
             <label className="flex items-center justify-between cursor-pointer">
               <span>Dyslexia-Friendly Font</span>
               <input
                 type="checkbox"
                 checked={dyslexicFont}
                 onChange={(e) => { setDyslexicFont(e.target.checked); announce(e.target.checked ? 'Dyslexia font enabled' : 'Dyslexia font disabled'); }}
-                className="w-4 h-4 rounded text-sky-600"
+                className="w-4 h-4 rounded accent-gold"
               />
             </label>
             <label className="flex items-center justify-between cursor-pointer">
@@ -138,7 +139,7 @@ export const AccessibilityToolbar: React.FC = () => {
                 type="checkbox"
                 checked={highContrast}
                 onChange={(e) => { setHighContrast(e.target.checked); announce(e.target.checked ? 'High contrast enabled' : 'High contrast disabled'); }}
-                className="w-4 h-4 rounded text-sky-600"
+                className="w-4 h-4 rounded accent-gold"
               />
             </label>
           </div>

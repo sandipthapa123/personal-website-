@@ -92,7 +92,7 @@ export class StorageDriverService implements IStorageDriver {
     }
 
     const storageKey = `${folder}/${safeFilename}`;
-    const publicUrl = `http://localhost:4000/uploads/${storageKey}`;
+    const publicUrl = `${process.env.APP_URL || 'http://localhost:4000'}/uploads/${storageKey}`;
 
     return {
       storageKey,
@@ -163,6 +163,6 @@ export class StorageDriverService implements IStorageDriver {
     if (storageKey.startsWith('http://') || storageKey.startsWith('https://')) {
       return storageKey;
     }
-    return `http://localhost:4000/uploads/${storageKey}`;
+    return `${process.env.APP_URL || 'http://localhost:4000'}/uploads/${storageKey}`;
   }
 }

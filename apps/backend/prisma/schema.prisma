@@ -1,10 +1,11 @@
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
 // ----------------------------------------------------
@@ -50,6 +51,17 @@ model FeatureFlag {
   is_enabled  Boolean  @default(false)
   rules_json  String?
   updated_at  DateTime @updatedAt
+}
+
+// Caches machine-translated text so the same source string is never sent to the
+// translation API more than once (used by the English slug/translation pipeline).
+model TranslationCache {
+  id              String   @id @default(uuid())
+  source_text     String   @unique
+  source_lang     String   @default("auto")
+  target_lang     String   @default("en")
+  translated_text String
+  created_at      DateTime @default(now())
 }
 
 // ----------------------------------------------------

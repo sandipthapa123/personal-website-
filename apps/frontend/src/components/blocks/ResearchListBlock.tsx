@@ -37,7 +37,6 @@ export const ResearchListBlock: React.FC<ResearchListProps> = ({ heading, items 
             {item.url ? (
               <a
                 href={item.url}
-                aria-label={`View project: ${item.title}`}
                 className="focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
               >
                 {item.title}

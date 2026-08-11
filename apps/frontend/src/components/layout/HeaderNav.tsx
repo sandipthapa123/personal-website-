@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ChevronDownIcon } from '../ui/Icon';
 
 interface INavItem {
   label: string;
@@ -275,7 +276,11 @@ export function HeaderNav() {
                   aria-expanded={activeDropdown === item.label ? 'true' : undefined}
                 >
                   {item.label}
-                  {item.children && <span className="text-[10px] opacity-50 ml-0.5">▼</span>}
+                  {item.children && (
+                    <ChevronDownIcon
+                      className={`text-[10px] opacity-60 transition-transform duration-150 ${activeDropdown === item.label ? 'rotate-180' : ''}`}
+                    />
+                  )}
                 </Link>
 
                 {item.children && activeDropdown === item.label && (
@@ -364,7 +369,9 @@ export function HeaderNav() {
                       className="px-3 py-3 text-ink-400 hover:text-gold transition-colors focus:ring-2 focus:ring-gold"
                       aria-label={`Toggle ${item.label} submenu`}
                     >
-                      <span className="text-xs">{mobileExpanded === item.label ? '▲' : '▼'}</span>
+                      <ChevronDownIcon
+                        className={`text-xs transition-transform duration-150 ${mobileExpanded === item.label ? 'rotate-180' : ''}`}
+                      />
                     </button>
                   )}
                 </div>
@@ -385,15 +392,6 @@ export function HeaderNav() {
                 )}
               </div>
             ))}
-
-            <div className="pt-4 border-t border-ink-border mt-4">
-              <a
-                href="/admin/login"
-                className="block text-center px-4 py-3 text-gold border border-gold/30 bg-gold/10 text-xs font-bold rounded-xl hover:bg-gold/20 transition-colors"
-              >
-                Backend Admin Console
-              </a>
-            </div>
           </nav>
         </div>
       )}

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { HeartIcon, BookmarkIcon } from '../ui/Icon';
 
 export interface ReaderEngagementBarProps {
   initialLikes?: number;
@@ -30,29 +31,29 @@ export const ReaderEngagementBar: React.FC<ReaderEngagementBarProps> = ({
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg my-6 text-sm text-slate-700 dark:text-slate-200">
+    <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-ink-elevated border border-ink-border rounded-xl my-6 text-sm text-ink-100">
       <div className="flex items-center gap-3">
         <button
           onClick={handleLike}
           className={`px-3 py-1.5 rounded-md font-semibold text-xs flex items-center gap-1.5 transition-all ${
-            liked ? 'bg-rose-600 text-white' : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700'
+            liked ? 'bg-rose-600 text-white' : 'bg-ink border border-ink-border hover:border-gold/40'
           }`}
         >
-          ❤️ {liked ? 'Liked' : 'Like'} ({likes.toLocaleString('en-US')})
+          <HeartIcon className="text-sm" filled={liked} /> {liked ? 'Liked' : 'Like'} ({likes.toLocaleString('en-US')})
         </button>
         <button
           onClick={() => setBookmarked(!bookmarked)}
           className={`px-3 py-1.5 rounded-md font-semibold text-xs flex items-center gap-1.5 transition-all ${
-            bookmarked ? 'bg-amber-500 text-white' : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700'
+            bookmarked ? 'bg-gold text-ink' : 'bg-ink border border-ink-border hover:border-gold/40'
           }`}
         >
-          🔖 {bookmarked ? 'Bookmarked' : 'Bookmark'}
+          <BookmarkIcon className="text-sm" filled={bookmarked} /> {bookmarked ? 'Bookmarked' : 'Bookmark'}
         </button>
       </div>
 
-      <div className="flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
-        <span>📝 {wordCount.toLocaleString('en-US')} words</span>
-        <span>🧠 {difficulty}</span>
+      <div className="flex items-center gap-4 text-xs font-medium text-ink-400">
+        <span>{wordCount.toLocaleString('en-US')} words</span>
+        <span>{difficulty}</span>
       </div>
     </div>
   );

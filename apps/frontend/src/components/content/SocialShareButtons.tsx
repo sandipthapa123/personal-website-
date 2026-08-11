@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ACCESSIBILITY_CONSTANTS } from '@cms/accessibility';
+import { CheckIcon, CopyIcon } from '../ui/Icon';
 
 export interface SocialShareButtonsProps {
   title: string;
@@ -14,14 +15,14 @@ export const SocialShareButtons: React.FC<SocialShareButtonsProps> = ({ title, u
   const encodedUrl = encodeURIComponent(url);
 
   const shareLinks = [
-    { name: 'Facebook', url: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`, bg: 'bg-blue-600' },
-    { name: 'X (Twitter)', url: `https://x.com/intent/post?text=${encodedTitle}&url=${encodedUrl}`, bg: 'bg-black' },
-    { name: 'LinkedIn', url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`, bg: 'bg-sky-700' },
-    { name: 'Bluesky', url: `https://bsky.app/intent/compose?text=${encodedTitle}%20${encodedUrl}`, bg: 'bg-sky-500' },
-    { name: 'Reddit', url: `https://reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}`, bg: 'bg-orange-600' },
-    { name: 'WhatsApp', url: `https://api.whatsapp.com/send?text=${encodedTitle}%20${encodedUrl}`, bg: 'bg-emerald-600' },
-    { name: 'Telegram', url: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`, bg: 'bg-blue-500' },
-    { name: 'Email', url: `mailto:?subject=${encodedTitle}&body=${encodedUrl}`, bg: 'bg-slate-700' },
+    { name: 'Facebook', url: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
+    { name: 'X (Twitter)', url: `https://x.com/intent/post?text=${encodedTitle}&url=${encodedUrl}` },
+    { name: 'LinkedIn', url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}` },
+    { name: 'Bluesky', url: `https://bsky.app/intent/compose?text=${encodedTitle}%20${encodedUrl}` },
+    { name: 'Reddit', url: `https://reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}` },
+    { name: 'WhatsApp', url: `https://api.whatsapp.com/send?text=${encodedTitle}%20${encodedUrl}` },
+    { name: 'Telegram', url: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}` },
+    { name: 'Email', url: `mailto:?subject=${encodedTitle}&body=${encodedUrl}` },
   ];
 
   const handleCopyLink = () => {
@@ -38,9 +39,9 @@ export const SocialShareButtons: React.FC<SocialShareButtonsProps> = ({ title, u
   };
 
   return (
-    <div className="py-6 border-y border-slate-200 dark:border-slate-800 my-8 space-y-4">
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-        Share Article & Research
+    <div className="py-6 border-y border-ink-border my-8 space-y-4">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-ink-400">
+        Share Article &amp; Research
       </h3>
       <div className="flex flex-wrap gap-2">
         {shareLinks.map((platform) => (
@@ -50,7 +51,7 @@ export const SocialShareButtons: React.FC<SocialShareButtonsProps> = ({ title, u
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Share on ${platform.name}`}
-            className={`px-3.5 py-2 text-xs font-semibold text-white rounded-md shadow-sm transition-opacity hover:opacity-90 focus-visible:ring ${platform.bg}`}
+            className="px-3.5 py-2 text-xs font-semibold text-ink-100 bg-ink-elevated border border-ink-border rounded-md shadow-sm transition-colors hover:border-gold/40 hover:text-gold focus-visible:ring"
           >
             {platform.name}
           </a>
@@ -59,9 +60,9 @@ export const SocialShareButtons: React.FC<SocialShareButtonsProps> = ({ title, u
           type="button"
           onClick={handleCopyLink}
           aria-label="Copy article link to clipboard"
-          className="px-3.5 py-2 text-xs font-semibold bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 rounded-md shadow-sm hover:opacity-90 transition-opacity focus-visible:ring"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-gold text-ink rounded-md shadow-sm hover:brightness-110 transition-all focus-visible:ring"
         >
-          {copied ? '✓ Link Copied!' : '📋 Copy Link'}
+          {copied ? (<><CheckIcon className="text-xs" /> Link Copied!</>) : (<><CopyIcon className="text-xs" /> Copy Link</>)}
         </button>
       </div>
     </div>

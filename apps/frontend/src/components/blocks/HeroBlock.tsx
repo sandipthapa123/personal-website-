@@ -11,8 +11,8 @@ export interface HeroBlockProps {
 }
 
 export const HeroBlock: React.FC<HeroBlockProps> = ({
-  title = 'Welcome to my Platform',
-  subtitle = 'Senior Software Architect & Researcher',
+  title = 'Sandip Thapa',
+  subtitle,
   tagline,
   avatarUrl,
   primaryCta,

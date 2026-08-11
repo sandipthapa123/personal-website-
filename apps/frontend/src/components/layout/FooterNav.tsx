@@ -14,14 +14,16 @@ interface ISocialLink {
   icon?: string;
 }
 
-const PLATFORM_ICONS: Record<string, string> = {
-  ORCID: '🔬',
-  'Google Scholar': '🎓',
-  LinkedIn: '💼',
-  GitHub: '💻',
-  Twitter: '🐦',
-  ResearchGate: '🔭',
-  Academia: '📖',
+const PLATFORM_LABELS: Record<string, string> = {
+  ORCID: 'OR',
+  'Google Scholar': 'GS',
+  LinkedIn: 'in',
+  GitHub: 'GH',
+  Twitter: 'X',
+  Facebook: 'FB',
+  TikTok: 'TT',
+  ResearchGate: 'RG',
+  Academia: 'AC',
 };
 
 const DEFAULT_COLUMNS: IFooterColumn[] = [
@@ -56,10 +58,9 @@ const DEFAULT_COLUMNS: IFooterColumn[] = [
 ];
 
 const DEFAULT_SOCIAL: ISocialLink[] = [
-  { platform: 'ORCID', url: 'https://orcid.org' },
-  { platform: 'Google Scholar', url: 'https://scholar.google.com' },
-  { platform: 'LinkedIn', url: 'https://linkedin.com' },
-  { platform: 'GitHub', url: 'https://github.com/sandipthapa123' },
+  { platform: 'Facebook', url: 'https://facebook.com' },
+  { platform: 'Twitter', url: 'https://x.com' },
+  { platform: 'TikTok', url: 'https://tiktok.com' },
 ];
 
 export function FooterNav() {
@@ -109,11 +110,8 @@ export function FooterNav() {
             </div>
             <p className="text-ink-400 leading-relaxed text-[12px]">{aboutText}</p>
             <div className="space-y-1 pt-1">
-              <div className="text-[11px] text-gold/80 font-semibold">
-                🕐 Nepal Standard Time (NPT, UTC+05:45)
-              </div>
               <div className="text-[11px] text-ink-400">
-                Kathmandu, Nepal 🇳🇵
+                Kathmandu, Nepal
               </div>
             </div>
 
@@ -129,7 +127,9 @@ export function FooterNav() {
                   title={s.platform}
                   className="flex items-center gap-1.5 px-2.5 py-1 bg-ink-elevated hover:bg-ink-elevated/70 border border-ink-border hover:border-gold/40 rounded-lg transition-all text-[10px] font-semibold text-ink-400 hover:text-gold"
                 >
-                  <span>{PLATFORM_ICONS[s.platform] || '🔗'}</span>
+                  <span className="w-4 h-4 flex items-center justify-center rounded-sm bg-gold/10 text-gold text-[8px] font-bold">
+                    {PLATFORM_LABELS[s.platform] || s.platform.slice(0, 2).toUpperCase()}
+                  </span>
                   <span className="hidden sm:inline">{s.platform}</span>
                 </a>
               ))}
@@ -171,14 +171,6 @@ export function FooterNav() {
             <Link href="/accessibility-statement" className="hover:text-ink-100 transition-colors">
               Accessibility
             </Link>
-            <a
-              href="/admin/login"
-              className="hover:text-gold transition-colors font-semibold"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Admin
-            </a>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { HomeIcon, BookIcon, SearchIcon, MailIcon } from '../ui/Icon';
 
 interface EmptyPagePlaceholderProps {
   title: string;
@@ -38,31 +39,31 @@ export function EmptyPagePlaceholder({
         {`No published content is currently available for ${formattedTitle}. Please check back later.`}
       </div>
 
-      <div className="max-w-2xl w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-8 sm:p-12 shadow-2xl space-y-8 backdrop-blur">
+      <div className="max-w-2xl w-full bg-ink-elevated/90 border border-ink-border rounded-3xl p-8 sm:p-12 shadow-2xl shadow-black/30 space-y-8 backdrop-blur">
         {/* Status Badge */}
         <div className="flex items-center justify-center">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-sky-500/10 border border-sky-400/30 text-sky-300 rounded-full text-xs font-bold uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" aria-hidden="true" />
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-gold/10 border border-gold/30 text-gold rounded-full text-xs font-bold uppercase tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-gold animate-pulse" aria-hidden="true" />
             No Published Content Yet
           </span>
         </div>
 
         {/* Heading Hierarchy */}
         <div className="space-y-3">
-          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-tight">
+          <h1 className="font-serif-display text-3xl sm:text-5xl font-semibold text-ink-100 tracking-tight leading-tight">
             {formattedTitle}
           </h1>
-          <h2 className="text-lg sm:text-xl font-bold text-slate-300">
-            Content Pending Review & Publication
+          <h2 className="text-lg sm:text-xl font-bold text-ink-400">
+            Content Pending Review &amp; Publication
           </h2>
         </div>
 
         {/* Explanatory Message */}
-        <div className="p-6 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-2">
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
+        <div className="p-6 bg-ink/80 border border-ink-border rounded-2xl space-y-2">
+          <p className="text-ink-100 text-sm sm:text-base leading-relaxed">
             {message}
           </p>
-          <p className="text-xs text-slate-400 font-medium">
+          <p className="text-xs text-ink-400 font-medium">
             Please check back later or explore other sections of the Sandip Thapa Academic CMS Platform.
           </p>
         </div>
@@ -71,16 +72,16 @@ export function EmptyPagePlaceholder({
         <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto">
           <Link
             href="/"
-            className="px-5 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-sky-400 focus:outline-none"
+            className="px-5 py-3 bg-gold hover:brightness-110 text-ink font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-gold focus:outline-none"
           >
-            <span>🏠 Go to Home</span>
+            <HomeIcon className="text-sm" /> Go to Home
           </Link>
 
           <Link
             href="/about"
-            className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-sky-400 focus:outline-none"
+            className="px-5 py-3 bg-ink-raised hover:bg-ink-border text-ink-100 border border-ink-border font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-gold focus:outline-none"
           >
-            <span>📚 Browse Other Pages</span>
+            <BookIcon className="text-sm" /> Browse Other Pages
           </Link>
 
           <button
@@ -88,17 +89,17 @@ export function EmptyPagePlaceholder({
               const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true });
               window.dispatchEvent(event);
             }}
-            className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-sky-400 focus:outline-none"
+            className="px-5 py-3 bg-ink-raised hover:bg-ink-border text-ink-100 border border-ink-border font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-gold focus:outline-none"
           >
-            <span>🔍 Search Website</span>
-            <kbd className="px-1.5 py-0.5 bg-slate-950 text-[10px] rounded border border-slate-700">Ctrl K</kbd>
+            <SearchIcon className="text-sm" /> Search Website
+            <kbd className="px-1.5 py-0.5 bg-ink text-[10px] rounded border border-ink-border">Ctrl K</kbd>
           </button>
 
           <Link
             href="/contact"
-            className="px-5 py-3 bg-slate-900 hover:bg-slate-800 text-sky-300 border border-sky-500/30 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-sky-400 focus:outline-none"
+            className="px-5 py-3 bg-ink hover:bg-ink-raised text-gold border border-gold/30 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-gold focus:outline-none"
           >
-            <span>✉️ Contact</span>
+            <MailIcon className="text-sm" /> Contact
           </Link>
         </div>
       </div>

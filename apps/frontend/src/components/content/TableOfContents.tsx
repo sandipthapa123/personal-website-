@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { BookIcon } from '../ui/Icon';
 
 export interface TocItem {
   id: string;
@@ -39,16 +40,16 @@ export const TableOfContents: React.FC<TableOfContentsProps> = ({ contentSelecto
   if (headings.length === 0) return null;
 
   return (
-    <nav aria-label="Table of Contents" className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg my-6 text-sm">
-      <h3 className="font-bold text-slate-900 dark:text-white uppercase text-xs tracking-wider mb-3">
-        📖 Table of Contents
+    <nav aria-label="Table of Contents" className="p-4 bg-ink-elevated border border-ink-border rounded-xl my-6 text-sm">
+      <h3 className="font-bold text-ink-100 uppercase text-xs tracking-wider mb-3 flex items-center gap-2">
+        <BookIcon className="text-gold" /> Table of Contents
       </h3>
       <ul className="space-y-1.5">
         {headings.map((h) => (
           <li key={h.id} style={{ paddingLeft: `${(h.level - 1) * 0.75}rem` }}>
             <a
               href={`#${h.id}`}
-              className="text-sky-600 dark:text-sky-400 hover:underline transition-all block text-xs sm:text-sm"
+              className="text-ink-400 hover:text-gold hover:underline transition-all block text-xs sm:text-sm"
             >
               {h.text}
             </a>

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
+const APP_BASE_URL = process.env.APP_URL || 'http://localhost:4000';
+
 const DEFAULT_SETTINGS: Record<string, Record<string, any>> = {
   identity: {
     siteTitle: 'Sandip Thapa | Academic Research, Law & Accessibility Platform',
@@ -12,11 +14,15 @@ const DEFAULT_SETTINGS: Record<string, Record<string, any>> = {
     name: 'Sandip Thapa',
     title: 'Legal Scholar & Disability Rights Researcher',
     bio: 'Dedicated to legal research, disability rights advocacy, accessible design, and literary translation in Nepal.',
-    orcid: '0000-0002-1234-5678',
-    scholar: 'https://scholar.google.com',
+    orcid: '',
+    scholar: '',
     linkedin: 'https://linkedin.com',
     github: 'https://github.com/sandipthapa123',
-    website: 'https://thapasandip.com.np',
+    website: '',
+    facebook: '',
+    twitter: '',
+    tiktok: '',
+    avatarUrl: `${APP_BASE_URL}/uploads/profile/Sandip%20Thapa%20in%20KU%20background%20.jpg`,
   },
   hero: {
     title: 'Sandip Thapa',
@@ -26,6 +32,7 @@ const DEFAULT_SETTINGS: Record<string, Record<string, any>> = {
     primaryCtaUrl: '/publications',
     secondaryCtaLabel: 'Download Curriculum Vitae',
     secondaryCtaUrl: '/about/resume',
+    avatarUrl: `${APP_BASE_URL}/uploads/profile/sandip%20thapa%2C%20with%20coat%20pant.jpg`,
   },
   intro: {
     heading: 'Short Introduction',

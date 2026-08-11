@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { RedirectManagerService } from './redirect-manager.service';
+import { TranslationService } from './translation.service';
 
 export type SlugMode = 'AUTO' | 'MANUAL';
 export type ContentStatus = 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' | 'ARCHIVED';
@@ -84,24 +85,38 @@ export class SlugGeneratorService {
     { nepali: 'बाट', english: 'from' },
   ];
 
+  private readonly logger = new Logger(SlugGeneratorService.name);
+
   constructor(
     private prisma: PrismaService,
     private redirectManager: RedirectManagerService,
+    private translationService: TranslationService,
   ) {}
 
   /**
    * Generates a clean, fluent, professional SEO-optimized English slug from any title.
+   * Non-English titles are machine-translated to English first (result cached in the
+   * database); the built-in legal/academic phrase dictionary is used as a fallback
+   * whenever the translation service is unreachable.
    */
-  generateSlug(title: string, options?: { maxWords?: number; preservePrepositions?: boolean }): string {
+  async generateSlug(title: string, options?: { maxWords?: number; preservePrepositions?: boolean }): Promise<string> {
     if (!title || title.trim() === '') return 'untitled';
 
     const maxWords = options?.maxWords ?? 8;
     const preservePrep = options?.preservePrepositions ?? true;
 
-    // 1. Translate Nepali if Devanagari detected
+    // 1. Translate to English if any non-English characters are present
     let englishText = title;
-    if (/[\u0900-\u097F]/.test(title)) {
-      englishText = this.translateNepaliToProfessionalEnglish(title);
+    if (this.translationService.hasNonEnglishCharacters(title)) {
+      try {
+        const translated = await this.translationService.translateToEnglish(title);
+        englishText = this.translationService.hasNonEnglishCharacters(translated)
+          ? this.translateNepaliToProfessionalEnglish(title)
+          : translated;
+      } catch (err) {
+        this.logger.warn(`Falling back to dictionary translation for "${title}": ${(err as Error).message}`);
+        englishText = this.translateNepaliToProfessionalEnglish(title);
+      }
     }
 
     // 2. Normalize and split into words
@@ -150,29 +165,29 @@ export class SlugGeneratorService {
     // Action 1: RESET_TO_AUTO -> Clears manual override, enables AUTO, regenerates slug
     if (req.action === 'RESET_TO_AUTO') {
       currentMode = 'AUTO';
-      finalSlug = this.generateSlug(req.title);
+      finalSlug = await this.generateSlug(req.title);
     }
     // Action 2: GENERATE_BUTTON -> Explicit manual regeneration button click
     else if (req.action === 'GENERATE_BUTTON') {
-      finalSlug = this.generateSlug(req.title);
+      finalSlug = await this.generateSlug(req.title);
     }
     // Action 3: MANUAL_EDIT -> User manually typed into slug input -> Set MANUAL mode
     else if (req.action === 'MANUAL_EDIT') {
       currentMode = 'MANUAL';
-      finalSlug = this.generateSlug(req.currentSlug || req.title);
+      finalSlug = await this.generateSlug(req.currentSlug || req.title);
     }
     // Action 4: TITLE_CHANGE -> Title changed
     else if (req.action === 'TITLE_CHANGE') {
       // If content is published, automatic slug updates STOP
       if (isPublished) {
-        finalSlug = req.currentSlug || this.generateSlug(req.title);
+        finalSlug = req.currentSlug || (await this.generateSlug(req.title));
       } else if (currentMode === 'AUTO') {
-        finalSlug = this.generateSlug(req.title);
+        finalSlug = await this.generateSlug(req.title);
       }
     } else {
       // Fallback
       if (currentMode === 'AUTO' && !isPublished) {
-        finalSlug = this.generateSlug(req.title);
+        finalSlug = await this.generateSlug(req.title);
       }
     }
 

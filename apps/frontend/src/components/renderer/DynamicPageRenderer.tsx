@@ -12,6 +12,7 @@ export const DynamicPageRenderer: React.FC<DynamicPageRendererProps> = ({ schema
 
   const headerBlocks = regions[LayoutRegionKeys.HEADER] || [];
   const mainBlocks = regions[LayoutRegionKeys.MAIN] || [];
+  const sidebarBlocks = regions[LayoutRegionKeys.SIDEBAR] || [];
   const footerBlocks = regions[LayoutRegionKeys.FOOTER] || [];
 
   return (
@@ -23,9 +24,21 @@ export const DynamicPageRenderer: React.FC<DynamicPageRendererProps> = ({ schema
         </div>
       )}
 
-      {/* Main Region */}
-      <div className="flex-grow w-full max-w-6xl mx-auto px-4 sm:px-6 py-12 space-y-16">
-        {mainBlocks.map((b, idx) => renderBlockComponent(b.type, b.props, `main-${b.blockId}-${idx}`))}
+      {/* Main + Sidebar Regions */}
+      <div
+        className={`flex-grow w-full max-w-6xl mx-auto px-4 sm:px-6 py-12 ${
+          sidebarBlocks.length > 0 ? 'grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10 items-start' : ''
+        }`}
+      >
+        <div className="space-y-16 min-w-0">
+          {mainBlocks.map((b, idx) => renderBlockComponent(b.type, b.props, `main-${b.blockId}-${idx}`))}
+        </div>
+
+        {sidebarBlocks.length > 0 && (
+          <aside className="space-y-6 lg:sticky lg:top-24">
+            {sidebarBlocks.map((b, idx) => renderBlockComponent(b.type, b.props, `sidebar-${b.blockId}-${idx}`))}
+          </aside>
+        )}
       </div>
 
       {/* Footer Region */}
@@ -35,7 +48,7 @@ export const DynamicPageRenderer: React.FC<DynamicPageRendererProps> = ({ schema
         </div>
       ) : (
         <div className="border-t border-ink-border py-8 text-center text-sm text-ink-400 w-full">
-          <p>© {new Date().getFullYear()} Sandip Thapa. Enterprise Platform-Driven CMS.</p>
+          <p>© {new Date().getFullYear()} Sandip Thapa. All rights reserved.</p>
         </div>
       )}
     </div>

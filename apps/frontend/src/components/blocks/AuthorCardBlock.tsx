@@ -1,4 +1,5 @@
 import React from 'react';
+import { ExternalLinkIcon } from '../ui/Icon';
 
 export interface AuthorCardBlockProps {
   name?: string;
@@ -101,7 +102,7 @@ export const AuthorCardBlock: React.FC<AuthorCardBlockProps> = ({
           rel="noopener noreferrer"
           className="flex items-center gap-2 text-[11px] text-ink-400 hover:text-ink-100 transition-colors"
         >
-          <span className="w-5 h-5 bg-ink-border/60 rounded flex items-center justify-center text-[9px] font-black text-ink-100">🌐</span>
+          <span className="w-5 h-5 bg-ink-border/60 rounded flex items-center justify-center text-ink-100"><ExternalLinkIcon className="text-[10px]" /></span>
           Personal Website
         </a>
       )}

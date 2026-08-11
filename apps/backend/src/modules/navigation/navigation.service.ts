@@ -405,6 +405,18 @@ export class NavigationService {
     const scholar = await this.configService.getSetting(tid, 'profile', 'scholar');
     const linkedin = await this.configService.getSetting(tid, 'profile', 'linkedin');
     const github = await this.configService.getSetting(tid, 'profile', 'github');
+    const facebook = await this.configService.getSetting(tid, 'profile', 'facebook');
+    const twitter = await this.configService.getSetting(tid, 'profile', 'twitter');
+    const tiktok = await this.configService.getSetting(tid, 'profile', 'tiktok');
+
+    const socialMedia: { platform: string; url: string }[] = [];
+    if (facebook) socialMedia.push({ platform: 'Facebook', url: facebook });
+    if (twitter) socialMedia.push({ platform: 'Twitter', url: twitter });
+    if (tiktok) socialMedia.push({ platform: 'TikTok', url: tiktok });
+    if (orcid) socialMedia.push({ platform: 'ORCID', url: orcid.startsWith('http') ? orcid : `https://orcid.org/${orcid}` });
+    if (scholar) socialMedia.push({ platform: 'Google Scholar', url: scholar });
+    if (linkedin) socialMedia.push({ platform: 'LinkedIn', url: linkedin });
+    if (github) socialMedia.push({ platform: 'GitHub', url: github });
 
     return {
       aboutText: aboutText || 'Sandip Thapa — Legal Scholar, Human Rights Advocate, and Disability Accessibility Specialist based in Nepal.',
@@ -414,12 +426,7 @@ export class NavigationService {
           links: footer?.items.map((i) => ({ label: i.title, url: i.targetUrl })) || [],
         },
       ],
-      socialMedia: [
-        { platform: 'ORCID', url: orcid ? (orcid.startsWith('http') ? orcid : `https://orcid.org/${orcid}`) : 'https://orcid.org' },
-        { platform: 'Google Scholar', url: scholar || 'https://scholar.google.com' },
-        { platform: 'LinkedIn', url: linkedin || 'https://linkedin.com' },
-        { platform: 'GitHub', url: github || 'https://github.com/sandipthapa123' },
-      ],
+      socialMedia,
       copyright: copyright || '© 2083 BS / 2026 AD Sandip Thapa. All rights reserved.',
     };
   }

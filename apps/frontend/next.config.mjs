@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone',
   transpilePackages: [
     '@cms/shared-types',
     '@cms/ui-contracts',
@@ -12,13 +13,27 @@ const nextConfig = {
     '@cms/utilities'
   ],
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.thapasandip.com.np',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
       },
     ],
   },
 };
 
 export default nextConfig;
+

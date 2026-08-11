@@ -1,4 +1,5 @@
 import React from 'react';
+import { CopyIcon } from '../ui/Icon';
 
 export interface CodeBlockProps {
   code: string;
@@ -14,10 +15,10 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language = 'javascri
         <span>{language}</span>
         <button
           onClick={() => navigator.clipboard?.writeText(code)}
-          className="hover:text-gold transition-colors"
+          className="inline-flex items-center gap-1.5 hover:text-gold transition-colors"
           aria-label="Copy code"
         >
-          📋 Copy
+          <CopyIcon className="text-xs" /> Copy
         </button>
       </div>
       <pre className="p-4 text-xs sm:text-sm font-mono text-ink-100 overflow-x-auto leading-relaxed">

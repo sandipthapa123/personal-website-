@@ -1,4 +1,5 @@
 import React from 'react';
+import { PinIcon, CalendarIcon } from '../ui/Icon';
 
 export interface CardGridProps {
   heading?: string;
@@ -60,7 +61,6 @@ export const CardGridBlock: React.FC<CardGridProps> = ({ heading, description, i
               {item.url ? (
                 <a
                   href={item.url}
-                  aria-label={`Read more about ${item.title || item.name}`}
                   className="focus:outline-none focus:ring-2 focus:ring-gold rounded"
                 >
                   {item.title || item.name}
@@ -116,13 +116,13 @@ export const CardGridBlock: React.FC<CardGridProps> = ({ heading, description, i
                 </span>
               )}
               {item.location && (
-                <span className="text-[10px] text-ink-400">
-                  📍 {item.location}
+                <span className="inline-flex items-center gap-1 text-[10px] text-ink-400">
+                  <PinIcon className="text-[11px]" /> {item.location}
                 </span>
               )}
               {item.date && (
-                <span className="text-[10px] text-ink-400">
-                  🗓 {item.date}
+                <span className="inline-flex items-center gap-1 text-[10px] text-ink-400">
+                  <CalendarIcon className="text-[11px]" /> {item.date}
                 </span>
               )}
             </div>

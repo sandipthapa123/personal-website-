@@ -1042,7 +1042,7 @@ export class AdminController {
           <label style="display:flex;align-items:center;justify-content:space-between;"><span>SEO Slug</span><span id="edSlugBadgePage" class="slug-badge slug-auto">Auto</span></label>
           <div class="slug-row">
             <input type="text" id="edSlugPage" placeholder="auto-slug" oninput="onSlugInputPage()" style="flex:1;" />
-            <button type="button" class="btn btn-secondary btn-sm" onclick="regenSlugPage()">Regenerate</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="regenSlugPage()">Generate English Slug</button>
           </div>
         </div>
         <div class="form-group"><label for="edAuthorsPage">Authors</label><input type="text" id="edAuthorsPage" value="Sandip Thapa" /></div>
@@ -1948,9 +1948,27 @@ export class AdminController {
 
     /* ══ EDITOR ══ */
     var autosaveTimer=null,rteHistory=[];
-    function onTitleInputPage(){var title=(getVal('edTitlePage')||'').trim();var badge=document.getElementById('edSlugBadgePage');if(badge&&badge.classList.contains('slug-auto')){setVal('edSlugPage',title.toLowerCase().replace(/[^a-z0-9\s-]/g,'').trim().replace(/\s+/g,'-').replace(/-+/g,'-'));}generateMissingSeoPage();}
+    var slugDebounceTimerPage=null;
+    function onTitleInputPage(){var title=(getVal('edTitlePage')||'').trim();var badge=document.getElementById('edSlugBadgePage');if(badge&&badge.classList.contains('slug-auto')){if(slugDebounceTimerPage)clearTimeout(slugDebounceTimerPage);slugDebounceTimerPage=setTimeout(function(){fetchAndSetSlugPage(title,false);},600);}generateMissingSeoPage();}
     function onSlugInputPage(){var b=document.getElementById('edSlugBadgePage');if(b){b.className='slug-badge slug-manual';b.textContent='Manual';}}
-    function regenSlugPage(){var t=(getVal('edTitlePage')||'').trim();if(!t){showMsg('Enter title first','error');return;}setVal('edSlugPage',t.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''));var b=document.getElementById('edSlugBadgePage');if(b){b.className='slug-badge slug-auto';b.textContent='Auto';}}
+    function fetchAndSetSlugPage(title,isManualClick){
+      if(!title){if(isManualClick)showMsg('Enter title first','error');return;}
+      var badge=document.getElementById('edSlugBadgePage');
+      if(badge)badge.textContent='Translating…';
+      fetch('/api/v1/seo/generate-slug',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:title,excludeId:getVal('edIdPage')||undefined})})
+        .then(function(r){return r.json();})
+        .then(function(d){
+          if(d&&d.success&&d.data&&d.data.generatedSlug){setVal('edSlugPage',d.data.generatedSlug);}
+          var b=document.getElementById('edSlugBadgePage');
+          if(b){b.className='slug-badge slug-auto';b.textContent='Auto';}
+        })
+        .catch(function(){
+          var b=document.getElementById('edSlugBadgePage');
+          if(b)b.textContent='Auto';
+          if(isManualClick)showMsg('Slug generation failed — check your connection','error');
+        });
+    }
+    function regenSlugPage(){var t=(getVal('edTitlePage')||'').trim();if(!t){showMsg('Enter title first','error');return;}if(slugDebounceTimerPage)clearTimeout(slugDebounceTimerPage);fetchAndSetSlugPage(t,true);}
     function onStatusChange(){var status=getVal('edStatusPage');var sg=document.getElementById('schedDateGroup');if(sg)sg.style.display=(status==='SCHEDULED'?'block':'none');}
     function onVisibilityChange(){var v=getVal('edVisibilityPage');var g=document.getElementById('passGroupPage');if(g)g.style.display=(v==='PASSWORD'?'block':'none');}
     function generateMissingSeoPage(){var t=(getVal('edTitlePage')||'').trim();if(!t)return;var sum=(getVal('edSummaryPage')||'').trim();var mt=document.getElementById('edMetaTitlePage');var md=document.getElementById('edMetaDescPage');var kw=document.getElementById('edKeywordsPage');if(mt&&!mt.value)mt.value=t+' | Sandip Thapa Academic Platform';if(md&&!md.value)md.value=sum||(t+' — Academic publication by Sandip Thapa.');if(kw&&!kw.value)kw.value=selectedTags.join(', ')||'Legal Research, Disability Rights';updateCharCount('edMetaTitlePage','metaTitleCount',60);updateCharCount('edMetaDescPage','metaDescCount',160);}
@@ -1972,7 +1990,7 @@ export class AdminController {
     function saveEdPage(status){
       var id=getVal('edIdPage')||'';var title=(getVal('edTitlePage')||'').trim();
       if(!title){showMsg('Title is required','error');document.getElementById('edTitlePage').focus();return;}
-      var slug=(getVal('edSlugPage')||'').trim()||title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');setVal('edSlugPage',slug);
+      var slug=(getVal('edSlugPage')||'').trim();
       var catCbs=document.querySelectorAll('#catTreeContainer input[name="catTree"]:checked');var cats=[];for(var i=0;i<catCbs.length;i++)cats.push(catCbs[i].value);
       var primEl=document.querySelector('#catTreeContainer input[name="primaryCat"]:checked');
       var typeCbs=document.querySelectorAll('#typesGridPage input[name="contentType"]:checked');var types=[];for(var j=0;j<typeCbs.length;j++)types.push(typeCbs[j].value);

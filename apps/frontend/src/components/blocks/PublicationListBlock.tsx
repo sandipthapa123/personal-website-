@@ -1,4 +1,5 @@
 import React from 'react';
+import { DownloadIcon } from '../ui/Icon';
 
 export interface PublicationListProps {
   heading?: string;
@@ -45,7 +46,6 @@ export const PublicationListBlock: React.FC<PublicationListProps> = ({ heading, 
             {pub.url ? (
               <a
                 href={pub.url}
-                aria-label={`View publication: ${pub.title}`}
                 className="hover:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded transition-colors"
               >
                 {pub.title}
@@ -83,7 +83,7 @@ export const PublicationListBlock: React.FC<PublicationListProps> = ({ heading, 
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 font-semibold transition-colors"
               >
-                📄 Download PDF
+                <DownloadIcon className="text-xs" /> Download PDF
               </a>
             )}
           </div>

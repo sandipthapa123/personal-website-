@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import { CheckIcon, CloseIcon } from '../ui/Icon';
 
 export type DialogSeverity = 'INFO' | 'SUCCESS' | 'WARNING' | 'DANGER' | 'CRITICAL';
 
@@ -154,14 +155,14 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       {/* WCAG 2.2 AAA Accessible Modal Backdrop */}
       {activeDialog && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/80 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="dialog-title"
           aria-describedby="dialog-desc"
           ref={dialogRef}
         >
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl space-y-4">
+          <div className="w-full max-w-lg bg-ink-elevated border border-ink-border rounded-2xl p-6 shadow-2xl shadow-black/40 space-y-4">
             {/* Header / Severity Badge */}
             <div className="flex items-center justify-between">
               <span
@@ -170,7 +171,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                     ? 'bg-rose-950/80 text-rose-300 border border-rose-800'
                     : activeDialog.severity === 'WARNING'
                     ? 'bg-amber-950/80 text-amber-300 border border-amber-800'
-                    : 'bg-sky-950/80 text-sky-300 border border-sky-800'
+                    : 'bg-gold/10 text-gold border border-gold/30'
                 }`}
               >
                 {activeDialog.severity}
@@ -178,19 +179,19 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               <button
                 onClick={closeDialog}
                 aria-label="Close dialog"
-                className="text-slate-400 hover:text-white text-sm font-bold p-1 rounded focus:ring-2 focus:ring-sky-500"
+                className="text-ink-400 hover:text-ink-100 text-sm font-bold p-1 rounded focus:ring-2 focus:ring-gold"
               >
-                ✕
+                <CloseIcon className="text-sm" />
               </button>
             </div>
 
             {/* Title & Description */}
             <div>
-              <h2 id="dialog-title" className="text-lg font-extrabold text-white">
+              <h2 id="dialog-title" className="font-serif-display text-lg font-semibold text-ink-100">
                 {activeDialog.title}
               </h2>
               {activeDialog.description && (
-                <p id="dialog-desc" className="text-xs text-slate-300 mt-2 leading-relaxed">
+                <p id="dialog-desc" className="text-xs text-ink-400 mt-2 leading-relaxed">
                   {activeDialog.description}
                 </p>
               )}
@@ -198,9 +199,9 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
 
             {/* Validation Error List */}
             {activeDialog.type === 'VALIDATION' && activeDialog.errors && (
-              <div className="bg-slate-950 border border-amber-900/50 rounded-lg p-3 space-y-2">
+              <div className="bg-ink border border-amber-900/50 rounded-lg p-3 space-y-2">
                 <p className="text-xs font-bold text-amber-400 uppercase tracking-wide">The following issues must be resolved:</p>
-                <ul className="list-disc pl-4 text-xs text-slate-300 space-y-1">
+                <ul className="list-disc pl-4 text-xs text-ink-400 space-y-1">
                   {activeDialog.errors.map((err, idx) => (
                     <li key={idx}>{err}</li>
                   ))}
@@ -209,13 +210,13 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
             )}
 
             {/* Actions */}
-            <div className="flex justify-end gap-3 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-3 pt-2 border-t border-ink-border">
               <button
                 onClick={() => {
                   if (activeDialog.onCancel) activeDialog.onCancel();
                   closeDialog();
                 }}
-                className="px-4 py-2 text-xs font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg focus:ring-2 focus:ring-slate-400"
+                className="px-4 py-2 text-xs font-bold text-ink-400 bg-ink-raised hover:bg-ink-border rounded-lg focus:ring-2 focus:ring-gold"
               >
                 {activeDialog.cancelText || 'Cancel'}
               </button>
@@ -224,10 +225,10 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                   if (activeDialog.onConfirm) await activeDialog.onConfirm();
                   closeDialog();
                 }}
-                className={`btn-primary-modal px-4 py-2 text-xs font-bold text-white rounded-lg focus:ring-2 ${
+                className={`btn-primary-modal px-4 py-2 text-xs font-bold rounded-lg focus:ring-2 transition-all ${
                   activeDialog.severity === 'DANGER' || activeDialog.severity === 'CRITICAL'
-                    ? 'bg-rose-600 hover:bg-rose-700 focus:ring-rose-400'
-                    : 'bg-sky-600 hover:bg-sky-700 focus:ring-sky-400'
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-400'
+                    : 'bg-gold hover:brightness-110 text-ink focus:ring-gold'
                 }`}
               >
                 {activeDialog.confirmText || 'Confirm'}
@@ -250,7 +251,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                 : 'bg-emerald-950 border-emerald-800 text-emerald-200'
             }`}
           >
-            <span>✓ {toast.message}</span>
+            <span className="inline-flex items-center gap-1.5"><CheckIcon className="text-sm" /> {toast.message}</span>
             {toast.actionLabel && (
               <button
                 onClick={toast.onAction}

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ACCESSIBILITY_CONSTANTS } from '@cms/accessibility';
+import { CapIcon, CheckIcon } from '../ui/Icon';
 
 export interface AcademicCitationsProps {
   title: string;
@@ -43,22 +44,22 @@ export const AcademicCitations: React.FC<AcademicCitationsProps> = ({
   };
 
   return (
-    <section className="p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl my-8 space-y-4">
-      <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-        🎓 Citation Generator & Academic Export
+    <section className="p-6 bg-ink-elevated border border-ink-border rounded-2xl my-8 space-y-4">
+      <h3 className="font-serif-display text-base font-semibold text-ink-100 flex items-center gap-2">
+        <CapIcon className="text-gold text-lg" /> Citation Generator &amp; Academic Export
       </h3>
       <div className="space-y-3 text-xs sm:text-sm">
         {(Object.keys(citations) as Array<keyof typeof citations>).map((fmt) => (
-          <div key={fmt} className="p-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div key={fmt} className="p-3 bg-ink border border-ink-border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="font-bold text-sky-600 dark:text-sky-400 mr-2">{fmt}:</span>
-              <span className="font-mono text-slate-700 dark:text-slate-300">{citations[fmt]}</span>
+              <span className="font-bold text-gold mr-2">{fmt}:</span>
+              <span className="font-mono text-ink-400">{citations[fmt]}</span>
             </div>
             <button
               onClick={() => handleCopy(fmt)}
-              className="px-3 py-1 bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900 rounded font-medium hover:opacity-90 transition-opacity self-start sm:self-auto flex-shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-gold text-ink rounded font-medium hover:brightness-110 transition-all self-start sm:self-auto flex-shrink-0"
             >
-              {copiedFormat === fmt ? '✓ Copied' : 'Copy'}
+              {copiedFormat === fmt ? (<><CheckIcon className="text-xs" /> Copied</>) : 'Copy'}
             </button>
           </div>
         ))}

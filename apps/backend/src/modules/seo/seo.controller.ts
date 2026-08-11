@@ -25,7 +25,7 @@ export class SeoController {
   @Post('seo/generate-slug')
   @ApiOperation({ summary: 'Generate clean, SEO-friendly English slug from title (supports Nepali translation)' })
   async generateSlug(@Body() body: { title: string; maxWords?: number; excludeId?: string }) {
-    const rawSlug = this.slugGenerator.generateSlug(body.title, { maxWords: body.maxWords });
+    const rawSlug = await this.slugGenerator.generateSlug(body.title, { maxWords: body.maxWords });
     const uniqueSlug = await this.slugGenerator.ensureUniqueSlug(rawSlug, 'default-tenant-id', body.excludeId);
     return {
       success: true,

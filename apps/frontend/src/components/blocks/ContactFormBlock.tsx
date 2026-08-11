@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { CheckIcon } from '../ui/Icon';
 
 export interface ContactFormBlockProps {
   heading?: string;
@@ -60,8 +61,8 @@ export const ContactFormBlock: React.FC<ContactFormBlockProps> = ({
       </div>
 
       {status === 'success' ? (
-        <div className="p-4 bg-emerald-950/50 border border-emerald-800/40 rounded-xl text-emerald-300 text-sm font-semibold text-center">
-          ✓ {isNewsletter ? 'Successfully subscribed! You will receive quarterly updates.' : 'Message sent successfully. We will respond within 2-3 business days.'}
+        <div className="p-4 bg-emerald-950/50 border border-emerald-800/40 rounded-xl text-emerald-300 text-sm font-semibold text-center inline-flex items-center justify-center gap-2 w-full">
+          <CheckIcon className="text-base" /> {isNewsletter ? 'Successfully subscribed! You will receive quarterly updates.' : 'Message sent successfully. We will respond within 2-3 business days.'}
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
