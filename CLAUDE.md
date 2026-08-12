@@ -181,15 +181,25 @@ curl -sD - -o /dev/null https://thapasandip.com.np/ | grep -i 'x-nextjs-cache\|c
 
 ## 6. Production
 
-- cPanel + Phusion Passenger, two Node apps (`apps/backend/app.js`, `apps/frontend/app.js`).
-- Required backend env: `DATABASE_URL` (mysql), `JWT_SECRET`, `JWT_REFRESH_SECRET`,
-  `CORS_ORIGINS`, `PORT`, `MAIL_*`.
-- Required frontend env: `NEXT_PUBLIC_API_URL=https://api.thapasandip.com.np/api/v1`.
-  `CmsApiClient` strips a trailing `/api/v1` and re-appends it, so both the bare origin
+Full procedure in the `testing-deployment` skill. Essentials:
+
+- LiteSpeed `lsnode` on DirectAdmin. App root `~/thapasandip-app` at
+  `samanyay@dacloud.himalayan.host`, SSH key `~/.ssh/thapasandip_deploy`.
+- **The server is not a git checkout** — it is an uploaded build tree. Deploy = build
+  locally, ship `apps/backend/dist`, `packages/*/dist` and `apps/frontend/.next` over
+  SSH, then `touch apps/{backend,frontend}/tmp/restart.txt`.
+- The server runs the **working tree** state, not `HEAD`: its `schema.prisma` is the
+  uncommitted `mysql` one. Production is MySQL.
+- **`NEXT_PUBLIC_API_URL` is inlined at frontend build time.** Building without it bakes
+  in the `127.0.0.1:4000` fallback and every SSR page silently degrades to the
+  "Loading backend render schema…" placeholder while still returning 200. Always build
+  with it exported and grep the output to confirm.
+- `CmsApiClient` strips a trailing `/api/v1` and re-appends it, so both the bare origin
   and the prefixed form work — do not "fix" one of them into a double prefix.
 - `CORS_ORIGINS` is comma-separated and must include the public origin;
   `credentials: true` is set, so a wildcard origin will not work.
-- Deploy = `npm run build` (packages → backend → frontend) then restart both apps.
+- After any deploy, verify the homepage is **not** the placeholder (~56K healthy vs
+  ~23K degraded) — HTTP 200 alone proves nothing.
 
 ---
 

@@ -89,18 +89,90 @@ curl -sD - -o /dev/null https://thapasandip.com.np/ | grep -i 'x-nextjs-cache'
 `x-nextjs-cache: HIT` on a content page means a server fetch lost its `cache: 'no-store'`
 and the page is frozen at build time.
 
-## Deployment (cPanel + Passenger)
+## Deployment (LiteSpeed Node on DirectAdmin)
 
-Two Node apps: `apps/backend/app.js` (api subdomain) and `apps/frontend/app.js`.
+The server is **not a git checkout** — it is an uploaded build tree. Deploy = build
+locally, ship the built artifacts over SSH, restart.
 
-1. Pull/upload code, `npm install`.
-2. `npm run build` (packages → backend → frontend).
-3. `npx prisma migrate deploy` for schema changes.
-4. Restart **both** applications in cPanel.
+- Host: `samanyay@dacloud.himalayan.host`, key `~/.ssh/thapasandip_deploy`
+  (control panel is DirectAdmin on :2222 — a browser login is *not* needed to deploy).
+- App root: `~/thapasandip-app`
+- Runtime: LiteSpeed `lsnode` running `apps/backend/` and `apps/frontend/`.
+  `apps/backend/app.js` → `require('./dist/main')`;
+  `apps/frontend/app.js` → `next({ dev:false, dir:__dirname })` — i.e. the **regular**
+  Next server, so `.next/` is what matters and `.next/standalone` is unused.
+- Server DB is **MySQL**, and its `schema.prisma` is the `mysql` one — note this differs
+  from the committed `postgresql` schema. Do not "fix" the server to match git.
+- No `rsync` on the server; use `tar | ssh` or `scp` of a tarball.
 
-Required env — backend: `DATABASE_URL` (mysql), `JWT_SECRET`, `JWT_REFRESH_SECRET`,
-`CORS_ORIGINS` (comma-separated, must include the public origin; wildcards are invalid
-with `credentials: true`), `PORT`, `MAIL_*`.
-Frontend: `NEXT_PUBLIC_API_URL=https://api.thapasandip.com.np/api/v1`.
+### ⚠️ Build the frontend with the production API URL
 
-Never commit `.env`; it is gitignored and contains live mail credentials.
+`NEXT_PUBLIC_*` is **inlined at build time**, not read at runtime. Building without it
+bakes in the `http://127.0.0.1:4000/api/v1` fallback, which nothing listens on in
+production — every server-rendered page then silently falls back to the
+"Loading backend render schema…" placeholder while still returning HTTP 200.
+
+```bash
+NEXT_PUBLIC_API_URL="https://api.thapasandip.com.np/api/v1" \
+  npm --workspace=apps/frontend run build
+
+# always confirm what got baked in:
+grep -oE 'https://api\.thapasandip\.com\.np/api/v1|http://127\.0\.0\.1:4000/api/v1' \
+  apps/frontend/.next/server/app/page.js
+```
+
+### Procedure
+
+```bash
+SSHK="-i $HOME/.ssh/thapasandip_deploy"
+HOST=samanyay@dacloud.himalayan.host
+
+# 0. back up what is live (restore = tar xzf it back into ~/thapasandip-app)
+ssh $SSHK $HOST "cd ~/thapasandip-app && mkdir -p ~/deploy-backups && \
+  tar czf ~/deploy-backups/pre-\$(date +%Y%m%d-%H%M%S).tar.gz \
+  apps/backend/dist packages/utilities/dist apps/frontend/.next"
+
+# 1. package (cache/trace/standalone are not needed and are ~65M of the 70M)
+tar czf /tmp/deploy.tgz --exclude='.next/cache' --exclude='.next/trace' \
+  --exclude='.next/standalone' \
+  apps/backend/dist packages/utilities/dist apps/frontend/.next
+
+# 2. ship + extract
+scp $SSHK /tmp/deploy.tgz $HOST:~/deploy.tgz
+ssh $SSHK $HOST "cd ~/thapasandip-app && tar xzf ~/deploy.tgz && rm ~/deploy.tgz"
+
+# 3. restart both apps (LiteSpeed/Passenger restart hook)
+ssh $SSHK $HOST "cd ~/thapasandip-app && touch apps/backend/tmp/restart.txt apps/frontend/tmp/restart.txt"
+```
+
+Only ship `packages/*/dist` for packages you actually changed. Schema changes
+additionally need `npx prisma generate` + `npx prisma migrate deploy` on the server.
+
+### Post-deploy verification (do not skip)
+
+```bash
+# backend really restarted, and reports the real engine
+curl -s https://api.thapasandip.com.np/api/v1/health \
+  | python -c "import sys,json;d=json.load(sys.stdin);print(d['services']['database']['engine'], d['systemMetrics']['uptimeSeconds'])"
+
+# content API is authenticated (must be 401)
+curl -s -o /dev/null -w '%{http_code}\n' https://api.thapasandip.com.np/api/v1/content
+
+# homepage is dynamic AND actually rendered (not the placeholder)
+curl -sD - -o /tmp/h.html https://thapasandip.com.np/ | grep -i 'x-nextjs-cache\|cache-control'
+grep -c 'Loading backend render schema' /tmp/h.html   # must be 0
+wc -c < /tmp/h.html                                   # ~56K when healthy, ~23K when falling back
+```
+
+A 200 response is not proof the page rendered — always check for the placeholder and
+the byte size.
+
+### Env
+
+Backend: `DATABASE_URL` (mysql), `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGINS`
+(comma-separated, must include the public origin; wildcards are invalid with
+`credentials: true`), `PORT`, `MAIL_*`.
+Frontend: `NEXT_PUBLIC_API_URL` in `apps/frontend/.env.local` **and** exported for the
+build (see above).
+
+Never commit `.env`; it is gitignored and holds live mail credentials.
