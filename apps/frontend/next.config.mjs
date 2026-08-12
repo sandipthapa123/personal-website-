@@ -2,6 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  experimental: {
+    cpus: 1,
+  },
   transpilePackages: [
     '@cms/shared-types',
     '@cms/ui-contracts',

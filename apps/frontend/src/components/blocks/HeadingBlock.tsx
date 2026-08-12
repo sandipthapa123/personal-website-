@@ -28,7 +28,7 @@ export const HeadingBlock: React.FC<HeadingBlockProps> = ({
     '3': 'text-xl sm:text-2xl font-bold text-ink-100 my-3',
     '4': 'text-lg font-bold text-ink-100 my-2',
     '5': 'text-base font-semibold text-ink-400 my-2',
-    '6': 'text-sm font-semibold text-gold my-1 uppercase tracking-wider',
+    '6': 'text-sm font-semibold text-gold-text my-1 uppercase tracking-wider',
   };
 
   return (

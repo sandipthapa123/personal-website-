@@ -1,4 +1,5 @@
 import React from 'react';
+import { Badge, Card, EmptyState, Section, SectionHeading, StretchedLink, slugifyId } from '../ui/primitives';
 
 export interface ResearchListProps {
   heading?: string;
@@ -12,44 +13,44 @@ export interface ResearchListProps {
   }>;
 }
 
-export const ResearchListBlock: React.FC<ResearchListProps> = ({ heading, items = [] }) => (
-  <section className="space-y-6">
-    {heading && (
-      <h2 className="font-serif-display text-2xl sm:text-3xl font-semibold text-ink-100 tracking-tight">{heading}</h2>
-    )}
-    <div className="grid grid-cols-1 gap-4">
-      {items.map((item, idx) => (
-        <article
-          key={idx}
-          className="group p-6 bg-ink-elevated border border-ink-border rounded-2xl space-y-3 hover:border-indigo-700/40 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 transition-all duration-200"
-        >
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            {item.status && (
-              <span className="px-2.5 py-0.5 bg-indigo-500/20 text-indigo-300 text-[10px] font-bold uppercase tracking-wider rounded">
-                {item.status}
-              </span>
-            )}
-            {item.timeline && (
-              <span className="text-xs text-ink-400 font-medium">{item.timeline}</span>
-            )}
-          </div>
-          <h3 className="text-xl font-semibold text-ink-100 group-hover:text-indigo-300 transition-colors">
-            {item.url ? (
-              <a
-                href={item.url}
-                className="focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
-              >
-                {item.title}
-              </a>
-            ) : (
-              item.title
-            )}
-          </h3>
-          {item.description && (
-            <p className="text-sm text-ink-400 leading-relaxed">{item.description}</p>
-          )}
-        </article>
-      ))}
-    </div>
-  </section>
-);
+export const ResearchListBlock: React.FC<ResearchListProps> = ({ heading, items = [] }) => {
+  const headingId = heading ? slugifyId(heading, 'research') : undefined;
+
+  return (
+    <Section labelledBy={headingId} className="space-y-7">
+      {heading && <SectionHeading id={headingId} title={heading} />}
+
+      {items.length === 0 ? (
+        <EmptyState
+          title="No research projects listed yet"
+          description="Active and completed research projects will appear here."
+          icon={<span className="text-lg">◈</span>}
+        />
+      ) : (
+        <ul className="m-0 grid list-none grid-cols-1 gap-5 p-0">
+          {items.map((item, idx) => (
+            <Card
+              as="li"
+              key={idx}
+              interactive={!!item.url}
+              className="edge-lit space-y-3 hover:border-accentBlue/50 focus-within:border-accentBlue/60"
+            >
+              {(item.status || item.timeline) && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {item.status && <Badge tone="blue">{item.status}</Badge>}
+                  {item.timeline && <span className="text-xs font-medium text-ink-400">{item.timeline}</span>}
+                </div>
+              )}
+
+              <h3 className="text-lg font-semibold leading-snug text-ink-100 transition-colors group-hover:text-accentBlue text-pretty sm:text-xl">
+                {item.url ? <StretchedLink href={item.url}>{item.title}</StretchedLink> : item.title}
+              </h3>
+
+              {item.description && <p className="text-sm leading-relaxed text-ink-400">{item.description}</p>}
+            </Card>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+};

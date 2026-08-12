@@ -2,43 +2,188 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   THEME TOKENS
+   Every theme redefines the same set of CSS custom properties; every
+   component keeps using the same semantic Tailwind classes (bg-ink,
+   text-ink-100, text-gold, ...) so switching themes never touches markup.
+
+   :root       = Light (default, and the no-JS/pre-hydration fallback)
+   [data-theme="dark"]  = Dark "editorial ink" theme
+   [data-theme="sepia"] = Warm sepia reading theme
+   .a11y-high-contrast  = Additive override, forces a maximum-contrast palette
+                           on top of whichever theme is active
+   ========================================================================== */
+
 :root {
-  /* Editorial charcoal & brass palette — channel triples so Tailwind's /opacity modifiers work.
-     Warm graphite instead of pure black so surfaces read as layered, not flat. */
+  color-scheme: light;
+
+  /* Surfaces (channel triples so Tailwind's /opacity modifiers work) */
+  --color-ink-rgb: 251 248 242;
+  --color-ink-elevated-rgb: 255 255 253;
+  --color-ink-raised-rgb: 255 255 255;
+  --color-ink-border-rgb: 224 214 196;
+
+  /* Text */
+  --color-text-primary: #1c1712;
+  --color-text-secondary: #5a4d3d;
+
+  /* Brand gold — constant vibrant value used for filled backgrounds, icons,
+     borders and other non-text UI (only needs 3:1 contrast). */
+  --color-gold-rgb: 199 160 76;
+  --color-gold-bright-rgb: 224 186 105;
+  /* Gold used as running TEXT (links, hover states) needs 7:1 AAA contrast
+     against the page background, so it's darkened per-theme. */
+  --color-gold-text-rgb: 95 66 15;
+  /* Fixed dark tone for text sitting on top of gold-filled elements
+     (logo badge, primary buttons) — always dark regardless of theme. */
+  --color-on-gold-rgb: 18 16 15;
+
+  --color-accent-blue-rgb: 20 70 140;
+  --color-parchment: #f4ede0;
+
+  /* Semantic status text, tuned per-theme for AAA (7:1) contrast against that
+     theme's own surface — see the same rationale as --color-gold-text-rgb. */
+  --color-success-text-rgb: 15 95 55;
+  --color-error-text-rgb: 150 20 20;
+  --color-warning-text-rgb: 120 68 5;
+
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+
+  /* Back-compat tokens consumed by tailwind.config.ts */
+  --color-primary-500: rgb(var(--color-gold-rgb));
+  --color-surface: rgb(var(--color-ink-rgb));
+  --color-text: var(--color-text-primary);
+
+  --user-line-height: 1.5;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
   --color-ink-rgb: 18 16 15;
   --color-ink-elevated-rgb: 30 27 24;
   --color-ink-raised-rgb: 40 36 32;
   --color-ink-border-rgb: 54 48 42;
+
+  --color-text-primary: #f3ede2;
+  --color-text-secondary: #b9ad9c;
+
   --color-gold-rgb: 199 160 76;
   --color-gold-bright-rgb: 224 186 105;
-  --color-accent-blue-rgb: 111 155 216;
-  --color-parchment: #f4ede0;
-  --color-text-primary: #f3ede2;
-  --color-text-secondary: #ab9f8f;
+  --color-gold-text-rgb: 199 160 76;
 
-  /* Back-compat tokens consumed by tailwind.config.ts (kept dark for a single cohesive theme) */
-  --color-primary-500: rgb(var(--color-gold-rgb));
-  --color-surface: rgb(var(--color-ink-rgb));
-  --color-text: var(--color-text-primary);
-  --radius-md: 0.625rem;
-  --radius-lg: 1rem;
+  --color-accent-blue-rgb: 130 172 227;
+
+  --color-success-text-rgb: 110 220 150;
+  --color-error-text-rgb: 255 120 120;
+  --color-warning-text-rgb: 255 180 60;
+}
+
+[data-theme='sepia'] {
+  color-scheme: light;
+  --color-ink-rgb: 244 232 208;
+  --color-ink-elevated-rgb: 250 242 224;
+  --color-ink-raised-rgb: 253 247 235;
+  --color-ink-border-rgb: 209 186 148;
+
+  --color-text-primary: #3b2c17;
+  --color-text-secondary: #6b563a;
+
+  --color-gold-rgb: 173 122 39;
+  --color-gold-bright-rgb: 199 148 63;
+  --color-gold-text-rgb: 95 66 15;
+
+  --color-accent-blue-rgb: 20 70 140;
+
+  --color-success-text-rgb: 15 95 55;
+  --color-error-text-rgb: 150 20 20;
+  --color-warning-text-rgb: 120 68 5;
+}
+
+/* High contrast is additive on top of any theme: forces a flat maximum-contrast
+   black/white/yellow palette and removes decorative texture. WCAG 1.4.6 AAA. */
+.a11y-high-contrast {
+  color-scheme: dark;
+  --color-ink-rgb: 0 0 0;
+  --color-ink-elevated-rgb: 0 0 0;
+  --color-ink-raised-rgb: 0 0 0;
+  --color-ink-border-rgb: 255 255 255;
+
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #ffffff;
+
+  --color-gold-rgb: 255 209 0;
+  --color-gold-bright-rgb: 255 225 77;
+  --color-gold-text-rgb: 255 209 0;
+  --color-on-gold-rgb: 0 0 0;
+
+  --color-accent-blue-rgb: 120 190 255;
+
+  --color-success-text-rgb: 110 220 150;
+  --color-error-text-rgb: 255 120 120;
+  --color-warning-text-rgb: 255 180 60;
+}
+
+.a11y-high-contrast body::before,
+.a11y-high-contrast .bg-editorial-canvas {
+  display: none;
+}
+
+.a11y-high-contrast * {
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+.a11y-high-contrast :is(button, a, input, select, textarea, [role='button']) {
+  border-width: 2px !important;
+}
+
+/* Dyslexia-friendly reading mode: increased letter/word/line spacing measurably
+   helps more readers than any single "dyslexic" typeface, and avoids depending
+   on an unlicensed webfont. Applies on top of whichever theme/font is active. */
+.a11y-dyslexia-friendly {
+  letter-spacing: 0.04em;
+  word-spacing: 0.12em;
+}
+.a11y-dyslexia-friendly p,
+.a11y-dyslexia-friendly li,
+.a11y-dyslexia-friendly .prose {
+  line-height: 1.9;
+}
+
+/* ==========================================================================
+   BASE
+   ========================================================================== */
+
+html {
+  line-height: var(--user-line-height);
 }
 
 body {
   background-color: rgb(var(--color-ink-rgb));
   background-image:
-    radial-gradient(ellipse 90% 55% at 50% -12%, rgb(var(--color-gold-rgb) / 0.07), transparent 60%),
-    radial-gradient(ellipse 70% 45% at 105% 15%, rgb(var(--color-accent-blue-rgb) / 0.05), transparent 55%),
-    radial-gradient(ellipse 65% 40% at -5% 85%, rgb(var(--color-gold-rgb) / 0.04), transparent 55%);
+    radial-gradient(ellipse 90% 55% at 50% -12%, rgb(var(--color-gold-rgb) / 0.10), transparent 60%),
+    radial-gradient(ellipse 70% 45% at 105% 15%, rgb(var(--color-accent-blue-rgb) / 0.06), transparent 55%),
+    radial-gradient(ellipse 65% 40% at -5% 85%, rgb(var(--color-gold-rgb) / 0.05), transparent 55%);
   background-attachment: fixed;
   color: var(--color-text-primary);
   font-family: var(--font-noto-sans), var(--font-noto-devanagari), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   margin: 0;
   padding: 0;
   position: relative;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Fine print-grain texture for depth — nearly invisible, keeps large dark areas from reading as flat/plain */
+[data-theme='dark'] body {
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% -12%, rgb(var(--color-gold-rgb) / 0.07), transparent 60%),
+    radial-gradient(ellipse 70% 45% at 105% 15%, rgb(var(--color-accent-blue-rgb) / 0.05), transparent 55%),
+    radial-gradient(ellipse 65% 40% at -5% 85%, rgb(var(--color-gold-rgb) / 0.04), transparent 55%);
+}
+
+/* Fine print-grain texture for depth — nearly invisible, keeps large flat areas
+   from reading as plain. Suppressed entirely under high-contrast (see above). */
 body::before {
   content: '';
   position: fixed;
@@ -48,6 +193,18 @@ body::before {
   opacity: 0.035;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+[data-theme='dark'] body::before {
+  mix-blend-mode: overlay;
+}
+:root:not([data-theme='dark']) body::before {
+  mix-blend-mode: multiply;
+  opacity: 0.02;
+}
+
+::selection {
+  background: rgb(var(--color-gold-rgb) / 0.35);
+  color: var(--color-text-primary);
 }
 
 .font-serif-display {
@@ -62,14 +219,33 @@ body::before {
 /* Subtle editorial grain + radial glow, used behind hero/feature sections */
 .bg-editorial-canvas {
   background-image:
-    radial-gradient(ellipse 60% 50% at 15% 0%, rgb(var(--color-gold-rgb) / 0.15), transparent 60%),
-    radial-gradient(ellipse 50% 40% at 100% 20%, rgb(var(--color-accent-blue-rgb) / 0.1), transparent 55%);
+    radial-gradient(ellipse 60% 50% at 15% 0%, rgb(var(--color-gold-rgb) / 0.16), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 20%, rgb(var(--color-accent-blue-rgb) / 0.12), transparent 55%);
 }
 
-/* WCAG AAA Focus Ring Style */
+/* WCAG AAA focus ring: a bright outline plus a soft halo of the opposite tone,
+   so it stays visible (>=3:1) against light, dark, sepia and high-contrast
+   surfaces alike, not just the ones the gold outline happens to suit. */
 *:focus-visible {
-  outline: 3px solid rgb(var(--color-gold-rgb));
+  outline: 3px solid rgb(var(--color-gold-text-rgb));
   outline-offset: 2px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 5px rgb(var(--color-ink-rgb) / 0.85);
+}
+.a11y-high-contrast *:focus-visible {
+  outline: 3px solid #ffffff;
+  box-shadow: 0 0 0 5px #000000;
+}
+
+/* Respect the OS-level reduced-motion preference everywhere, not just the one
+   hero animation — WCAG 2.3.3 AAA. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Hand-rolled prose styling for CMS rich text (no typography plugin installed) */
@@ -92,8 +268,8 @@ body::before {
 .prose h3 { font-size: 1.3em; }
 .prose h4 { font-size: 1.1em; }
 .prose p { margin-top: 1.1em; margin-bottom: 1.1em; }
-.prose a { color: rgb(var(--color-gold-rgb)); text-decoration: underline; text-underline-offset: 2px; }
-.prose a:hover { filter: brightness(1.15); }
+.prose a { color: rgb(var(--color-gold-text-rgb)); text-decoration: underline; text-underline-offset: 2px; }
+.prose a:hover { filter: brightness(1.25); }
 .prose strong { color: var(--color-text-primary); font-weight: 700; }
 .prose ul, .prose ol { margin-top: 1.1em; margin-bottom: 1.1em; padding-left: 1.5em; }
 .prose ul { list-style-type: disc; }
@@ -143,4 +319,76 @@ body::before {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ==========================================================================
+   DESIGN SYSTEM UTILITIES
+   Small helpers the primitives in components/ui/primitives.tsx rely on.
+   ========================================================================== */
+
+/* Avoids ragged one-word last lines in display headings. Progressive
+   enhancement — browsers without support simply wrap normally. */
+.text-balance {
+  text-wrap: balance;
+}
+.text-pretty {
+  text-wrap: pretty;
+}
+
+/* Loading skeletons. The shimmer is motion, so it is disabled under
+   prefers-reduced-motion and degrades to a flat resting tone. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgb(var(--color-ink-elevated-rgb));
+  border: 1px solid rgb(var(--color-ink-border-rgb) / 0.6);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgb(var(--color-gold-rgb) / 0.10),
+      transparent
+    );
+    animation: skeleton-sweep 1.6s ease-in-out infinite;
+  }
+}
+@keyframes skeleton-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Section rhythm: generous, consistent vertical spacing between the blocks the
+   CMS stacks into the main region, without needing per-block margins. */
+.section-flow > * + * {
+  margin-top: clamp(3rem, 6vw, 5.5rem);
+}
+
+/* Hairline top highlight that gives cards and panels a lit edge. Purely
+   decorative and suppressed in high-contrast mode along with other shadows. */
+.edge-lit {
+  position: relative;
+}
+.edge-lit::before {
+  content: '';
+  position: absolute;
+  inset-inline: 1rem;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background-image: linear-gradient(90deg, transparent, rgb(var(--color-gold-rgb) / 0.45), transparent);
+}
+.a11y-high-contrast .edge-lit::before {
+  display: none;
+}
+
+/* Anchor targets sit below the sticky header when jumped to via #id. */
+[id] {
+  scroll-margin-top: 6rem;
 }

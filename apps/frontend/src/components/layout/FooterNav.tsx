@@ -103,7 +103,7 @@ export function FooterNav() {
           {/* Brand / About Column */}
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 bg-gold rounded-lg flex items-center justify-center font-serif-display font-bold text-sm text-ink shadow">
+              <div className="w-8 h-8 bg-gold rounded-lg flex items-center justify-center font-serif-display font-bold text-sm text-onGold shadow">
                 ST
               </div>
               <span className="font-serif-display font-semibold text-ink-100 text-sm">Sandip Thapa</span>
@@ -125,9 +125,9 @@ export function FooterNav() {
                   rel="noopener noreferrer"
                   aria-label={s.platform}
                   title={s.platform}
-                  className="flex items-center gap-1.5 px-2.5 py-1 bg-ink-elevated hover:bg-ink-elevated/70 border border-ink-border hover:border-gold/40 rounded-lg transition-all text-[10px] font-semibold text-ink-400 hover:text-gold"
+                  className="flex items-center gap-1.5 px-2.5 py-1 bg-ink-elevated hover:bg-ink-elevated/70 border border-ink-border hover:border-gold-text/40 rounded-lg transition-all text-[10px] font-semibold text-ink-400 hover:text-gold-text"
                 >
-                  <span className="w-4 h-4 flex items-center justify-center rounded-sm bg-gold/10 text-gold text-[8px] font-bold">
+                  <span className="w-4 h-4 flex items-center justify-center rounded-sm bg-gold/10 text-gold-text text-[8px] font-bold">
                     {PLATFORM_LABELS[s.platform] || s.platform.slice(0, 2).toUpperCase()}
                   </span>
                   <span className="hidden sm:inline">{s.platform}</span>
@@ -139,14 +139,16 @@ export function FooterNav() {
           {/* Dynamic Backend-Driven Footer Columns */}
           {columns.map((col) => (
             <div key={col.title} className="space-y-4">
-              <h4 className="font-extrabold text-ink-100 uppercase tracking-widest text-[10px]">{col.title}</h4>
+              {/* h2, not h4: the footer is its own landmark and the page's last
+                  content heading is an h2, so h4 skipped a level (WCAG 1.3.1). */}
+              <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-ink-100">{col.title}</h2>
               <nav aria-label={`Footer: ${col.title}`}>
                 <ul className="space-y-2.5">
                   {col.links.map((link) => (
                     <li key={link.label}>
                       <Link
                         href={link.url}
-                        className="text-ink-400 hover:text-gold transition-colors leading-snug block text-[12px]"
+                        className="text-ink-400 hover:text-gold-text transition-colors leading-snug block text-[12px]"
                       >
                         {link.label}
                       </Link>

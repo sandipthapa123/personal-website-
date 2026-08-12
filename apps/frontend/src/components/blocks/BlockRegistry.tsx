@@ -47,15 +47,21 @@ const blockMap: Record<string, React.FC<any>> = {
 export function renderBlockComponent(type: string, props: any, key: string) {
   const Component = blockMap[type];
   if (!Component) {
-    return (
-      <div
-        key={key}
-        className="p-4 border border-dashed border-amber-700/50 bg-amber-950/20 rounded-lg text-amber-400 text-xs font-mono"
-        aria-hidden="true"
-      >
-        [Unregistered Block: <strong>{type}</strong>]
-      </div>
-    );
+    // An unknown block is an authoring/deployment problem, not something a
+    // visitor should ever see — this used to render a dashed debug box on the
+    // live site. Surface it loudly in development and render nothing in
+    // production so the page degrades cleanly instead of showing placeholder UI.
+    if (process.env.NODE_ENV !== 'production') {
+      return (
+        <div
+          key={key}
+          className="rounded-lg border border-dashed border-warningText/50 bg-warningText/10 p-4 font-mono text-xs text-warningText"
+        >
+          [dev] Unregistered block type: <strong>{type}</strong>
+        </div>
+      );
+    }
+    return null;
   }
   return <Component key={key} {...props} />;
 }

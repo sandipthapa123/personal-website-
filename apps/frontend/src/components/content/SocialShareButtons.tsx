@@ -51,7 +51,7 @@ export const SocialShareButtons: React.FC<SocialShareButtonsProps> = ({ title, u
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Share on ${platform.name}`}
-            className="px-3.5 py-2 text-xs font-semibold text-ink-100 bg-ink-elevated border border-ink-border rounded-md shadow-sm transition-colors hover:border-gold/40 hover:text-gold focus-visible:ring"
+            className="px-3.5 py-2 text-xs font-semibold text-ink-100 bg-ink-elevated border border-ink-border rounded-md shadow-sm transition-colors hover:border-gold-text/50 hover:text-gold-text"
           >
             {platform.name}
           </a>
@@ -60,7 +60,7 @@ export const SocialShareButtons: React.FC<SocialShareButtonsProps> = ({ title, u
           type="button"
           onClick={handleCopyLink}
           aria-label="Copy article link to clipboard"
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-gold text-ink rounded-md shadow-sm hover:brightness-110 transition-all focus-visible:ring"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-gold text-onGold rounded-md shadow-sm hover:brightness-110 transition-all"
         >
           {copied ? (<><CheckIcon className="text-xs" /> Link Copied!</>) : (<><CopyIcon className="text-xs" /> Copy Link</>)}
         </button>

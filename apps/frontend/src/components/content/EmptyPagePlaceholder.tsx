@@ -34,16 +34,11 @@ export function EmptyPagePlaceholder({
       aria-label={`No published content status for ${formattedTitle}`}
       className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center focus:outline-none"
     >
-      {/* ARIA Live Region for Screen Readers */}
-      <div className="sr-only" aria-live="polite" aria-atomic="true">
-        {`No published content is currently available for ${formattedTitle}. Please check back later.`}
-      </div>
-
       <div className="max-w-2xl w-full bg-ink-elevated/90 border border-ink-border rounded-3xl p-8 sm:p-12 shadow-2xl shadow-black/30 space-y-8 backdrop-blur">
         {/* Status Badge */}
         <div className="flex items-center justify-center">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-gold/10 border border-gold/30 text-gold rounded-full text-xs font-bold uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-gold animate-pulse" aria-hidden="true" />
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-gold/10 border border-gold-text/30 text-gold-text rounded-full text-xs font-bold uppercase tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-gold-text animate-pulse motion-reduce:animate-none" aria-hidden="true" />
             No Published Content Yet
           </span>
         </div>
@@ -72,24 +67,25 @@ export function EmptyPagePlaceholder({
         <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto">
           <Link
             href="/"
-            className="px-5 py-3 bg-gold hover:brightness-110 text-ink font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-gold focus:outline-none"
+            className="px-5 py-3 bg-gold hover:brightness-110 text-onGold font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
           >
             <HomeIcon className="text-sm" /> Go to Home
           </Link>
 
           <Link
             href="/about"
-            className="px-5 py-3 bg-ink-raised hover:bg-ink-border text-ink-100 border border-ink-border font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-gold focus:outline-none"
+            className="px-5 py-3 bg-ink-raised hover:bg-ink-border text-ink-100 border border-ink-border font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
           >
             <BookIcon className="text-sm" /> Browse Other Pages
           </Link>
 
           <button
+            type="button"
             onClick={() => {
               const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true });
               window.dispatchEvent(event);
             }}
-            className="px-5 py-3 bg-ink-raised hover:bg-ink-border text-ink-100 border border-ink-border font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-gold focus:outline-none"
+            className="px-5 py-3 bg-ink-raised hover:bg-ink-border text-ink-100 border border-ink-border font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
           >
             <SearchIcon className="text-sm" /> Search Website
             <kbd className="px-1.5 py-0.5 bg-ink text-[10px] rounded border border-ink-border">Ctrl K</kbd>
@@ -97,7 +93,7 @@ export function EmptyPagePlaceholder({
 
           <Link
             href="/contact"
-            className="px-5 py-3 bg-ink hover:bg-ink-raised text-gold border border-gold/30 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 focus:ring-2 focus:ring-gold focus:outline-none"
+            className="px-5 py-3 bg-ink hover:bg-ink-raised text-gold-text border border-gold-text/30 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
           >
             <MailIcon className="text-sm" /> Contact
           </Link>

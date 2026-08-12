@@ -1,4 +1,5 @@
 import React from 'react';
+import { EmptyState, Section, SectionHeading, slugifyId } from '../ui/primitives';
 
 export interface StatsBlockProps {
   heading?: string;
@@ -11,29 +12,43 @@ export interface StatsBlockProps {
   }>;
 }
 
-export const StatsBlock: React.FC<StatsBlockProps> = ({ heading, subheading, stats = [] }) => (
-  <section className="bg-editorial-canvas bg-ink-elevated border border-ink-border rounded-2xl p-8 space-y-6">
-    {heading && (
-      <div className="space-y-1">
-        <h2 className="font-serif-display text-2xl sm:text-3xl font-semibold text-ink-100 tracking-tight">{heading}</h2>
-        {subheading && <p className="text-sm text-ink-400">{subheading}</p>}
-      </div>
-    )}
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-      {stats.map((stat, idx) => (
-        <div key={idx} className="group text-center space-y-2 p-4 rounded-xl bg-ink/60 border border-ink-border hover:border-gold/40 transition-all">
-          {stat.icon && (
-            <div className="text-2xl">{stat.icon}</div>
-          )}
-          <div className="font-serif-display text-3xl sm:text-4xl font-semibold text-gold transition-colors">
-            {stat.value}
-          </div>
-          <div className="text-xs text-ink-400 font-semibold uppercase tracking-wider">{stat.label}</div>
-          {stat.description && (
-            <p className="text-[10px] text-ink-400/70 leading-snug">{stat.description}</p>
-          )}
-        </div>
-      ))}
-    </div>
-  </section>
-);
+export const StatsBlock: React.FC<StatsBlockProps> = ({ heading, subheading, stats = [] }) => {
+  const headingId = heading ? slugifyId(heading, 'stats') : undefined;
+
+  return (
+    <Section labelledBy={headingId} tone="accent" className="edge-lit space-y-7">
+      {heading && <SectionHeading id={headingId} title={heading} description={subheading} />}
+
+      {stats.length === 0 ? (
+        <EmptyState title="No statistics available yet" />
+      ) : (
+        // A definition list is the correct semantic pairing for label/value
+        // metrics — screen readers announce each figure with its label rather
+        // than reading a wall of orphaned numbers.
+        <dl className="grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+          {stats.map((stat, idx) => (
+            <div
+              key={idx}
+              className="group relative overflow-hidden rounded-2xl border border-ink-border bg-ink/60 p-5 text-center transition duration-200 hover:border-gold/50 motion-safe:hover:-translate-y-1"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent"
+              />
+              {stat.icon && (
+                <div className="mb-1 text-2xl" aria-hidden="true">
+                  {stat.icon}
+                </div>
+              )}
+              <dd className="font-serif-display text-3xl font-semibold text-gold-text sm:text-4xl">{stat.value}</dd>
+              <dt className="mt-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-400">{stat.label}</dt>
+              {stat.description && (
+                <p className="mt-1 text-[10px] leading-snug text-ink-400/80">{stat.description}</p>
+              )}
+            </div>
+          ))}
+        </dl>
+      )}
+    </Section>
+  );
+};

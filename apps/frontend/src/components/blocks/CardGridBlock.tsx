@@ -1,5 +1,16 @@
 import React from 'react';
 import { PinIcon, CalendarIcon } from '../ui/Icon';
+import {
+  Badge,
+  Card,
+  EmptyState,
+  MetaItem,
+  MetaRow,
+  Section,
+  SectionHeading,
+  StretchedLink,
+  slugifyId,
+} from '../ui/primitives';
 
 export interface CardGridProps {
   heading?: string;
@@ -29,6 +40,8 @@ export interface CardGridProps {
 }
 
 export const CardGridBlock: React.FC<CardGridProps> = ({ heading, description, items = [], columns = 2 }) => {
+  const headingId = heading ? slugifyId(heading, 'grid') : undefined;
+
   const colClass = {
     1: 'grid-cols-1',
     2: 'grid-cols-1 sm:grid-cols-2',
@@ -37,99 +50,63 @@ export const CardGridBlock: React.FC<CardGridProps> = ({ heading, description, i
   }[columns];
 
   return (
-    <section className="space-y-6">
-      {heading && (
-        <div className="space-y-2">
-          <h2 className="font-serif-display text-2xl sm:text-3xl font-semibold text-ink-100 tracking-tight">{heading}</h2>
-          {description && <p className="text-sm text-ink-400">{description}</p>}
-        </div>
+    <Section labelledBy={headingId} className="space-y-7">
+      {heading && <SectionHeading id={headingId} title={heading} description={description} />}
+
+      {items.length === 0 ? (
+        <EmptyState
+          title="Nothing published here yet"
+          description="New entries appear in this section as soon as they are published."
+          icon={<span className="text-lg">◇</span>}
+        />
+      ) : (
+        <ul className={`grid ${colClass} gap-5 list-none p-0 m-0`}>
+          {items.map((item, idx) => {
+            const label = item.title || item.name || 'Untitled';
+            const badge = item.type || item.collection || item.role;
+
+            return (
+              <Card as="li" key={idx} interactive={!!item.url} className="edge-lit flex flex-col gap-3">
+                {badge && <Badge>{badge}</Badge>}
+
+                <h3 className="text-base font-semibold leading-snug text-ink-100 transition-colors group-hover:text-gold-text text-pretty">
+                  {item.url ? <StretchedLink href={item.url}>{label}</StretchedLink> : label}
+                </h3>
+
+                {(item.summary || item.description) && (
+                  <p className="line-clamp-3 text-sm leading-relaxed text-ink-400">{item.summary || item.description}</p>
+                )}
+
+                {item.quote && (
+                  <blockquote className="border-l-2 border-gold pl-3 text-sm italic leading-relaxed text-ink-100/90">
+                    &ldquo;{item.quote}&rdquo;
+                  </blockquote>
+                )}
+
+                {item.citationApa && (
+                  <p className="rounded-lg border border-ink-border bg-ink p-2.5 font-mono text-[10px] leading-relaxed text-ink-400">
+                    <span className="font-sans font-bold uppercase tracking-wider">APA</span> {item.citationApa}
+                  </p>
+                )}
+
+                <MetaRow className="mt-auto pt-1">
+                  {item.publishedBs && <MetaItem emphasis>{item.publishedBs}</MetaItem>}
+                  {item.publishedAd && <MetaItem>{item.publishedAd}</MetaItem>}
+                  {typeof item.readingTime === 'number' && item.readingTime > 0 && (
+                    <MetaItem>{item.readingTime} min read</MetaItem>
+                  )}
+                  {typeof item.views === 'number' && item.views > 0 && (
+                    <MetaItem>{item.views.toLocaleString('en-US')} views</MetaItem>
+                  )}
+                  {item.timeline && <MetaItem emphasis>{item.timeline}</MetaItem>}
+                  {item.location && <MetaItem icon={<PinIcon className="text-[11px]" />}>{item.location}</MetaItem>}
+                  {item.date && <MetaItem icon={<CalendarIcon className="text-[11px]" />}>{item.date}</MetaItem>}
+                </MetaRow>
+              </Card>
+            );
+          })}
+        </ul>
       )}
-      <div className={`grid ${colClass} gap-4`}>
-        {items.map((item, idx) => (
-          <article
-            key={idx}
-            className="group p-5 bg-ink-elevated border border-ink-border rounded-2xl space-y-3 hover:border-gold/40 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 transition-all duration-200 cursor-pointer"
-          >
-            {/* Type / Collection Badge */}
-            {(item.type || item.collection || item.role) && (
-              <span className="inline-block px-2.5 py-0.5 bg-gold/10 text-gold text-[10px] font-bold uppercase tracking-wider rounded">
-                {item.type || item.collection || item.role}
-              </span>
-            )}
-
-            <h3 className="font-semibold text-ink-100 group-hover:text-gold transition-colors text-sm leading-snug">
-              {item.url ? (
-                <a
-                  href={item.url}
-                  className="focus:outline-none focus:ring-2 focus:ring-gold rounded"
-                >
-                  {item.title || item.name}
-                </a>
-              ) : (
-                item.title || item.name
-              )}
-            </h3>
-
-            {(item.summary || item.description) && (
-              <p className="text-xs text-ink-400 leading-relaxed line-clamp-3">
-                {item.summary || item.description}
-              </p>
-            )}
-
-            {item.quote && (
-              <blockquote className="text-xs italic text-ink-100/90 border-l-2 border-gold pl-3 leading-relaxed">
-                &ldquo;{item.quote}&rdquo;
-              </blockquote>
-            )}
-
-            {item.citationApa && (
-              <div className="p-2.5 bg-ink rounded-lg text-[10px] font-mono text-ink-400 border border-ink-border leading-relaxed">
-                APA: {item.citationApa}
-              </div>
-            )}
-
-            {/* Meta row */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1">
-              {item.publishedBs && (
-                <span className="text-[10px] text-gold font-semibold">
-                  {item.publishedBs}
-                </span>
-              )}
-              {item.publishedAd && (
-                <span className="text-[10px] text-ink-400">
-                  {item.publishedAd}
-                </span>
-              )}
-              {item.readingTime && (
-                <span className="text-[10px] text-ink-400">
-                  {item.readingTime} min read
-                </span>
-              )}
-              {item.views && (
-                <span className="text-[10px] text-ink-400/70">
-                  {item.views.toLocaleString('en-US')} views
-                </span>
-              )}
-              {item.timeline && (
-                <span className="text-[10px] text-gold font-medium">
-                  {item.timeline}
-                </span>
-              )}
-              {item.location && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-ink-400">
-                  <PinIcon className="text-[11px]" /> {item.location}
-                </span>
-              )}
-              {item.date && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-ink-400">
-                  <CalendarIcon className="text-[11px]" /> {item.date}
-                </span>
-              )}
-            </div>
-
-          </article>
-        ))}
-      </div>
-    </section>
+    </Section>
   );
 };

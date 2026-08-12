@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useRef } from 'react';
 import { CheckIcon, CloseIcon } from '../ui/Icon';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 export type DialogSeverity = 'INFO' | 'SUCCESS' | 'WARNING' | 'DANGER' | 'CRITICAL';
 
@@ -109,42 +110,10 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  // Keyboard navigation & trap focus inside modal (WCAG 2.2 AAA)
-  useEffect(() => {
-    if (!activeDialog) return;
+  const primaryButtonRef = useRef<HTMLButtonElement>(null);
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        closeDialog();
-      }
-      if (e.key === 'Tab' && dialogRef.current) {
-        const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [activeDialog]);
-
-  // Focus modal primary button when opened
-  useEffect(() => {
-    if (activeDialog && dialogRef.current) {
-      const primaryBtn = dialogRef.current.querySelector<HTMLElement>('.btn-primary-modal');
-      if (primaryBtn) primaryBtn.focus();
-    }
-  }, [activeDialog]);
+  // Keyboard navigation, focus trap, initial focus and focus restoration (WCAG 2.2 AAA)
+  useFocusTrap({ active: Boolean(activeDialog), containerRef: dialogRef, onClose: closeDialog, initialFocusRef: primaryButtonRef });
 
   return (
     <DialogContext.Provider
@@ -168,18 +137,19 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               <span
                 className={`text-xs font-extrabold px-2.5 py-1 rounded uppercase tracking-wider ${
                   activeDialog.severity === 'DANGER' || activeDialog.severity === 'CRITICAL'
-                    ? 'bg-rose-950/80 text-rose-300 border border-rose-800'
+                    ? 'bg-errorText/10 text-errorText border border-errorText/30'
                     : activeDialog.severity === 'WARNING'
-                    ? 'bg-amber-950/80 text-amber-300 border border-amber-800'
-                    : 'bg-gold/10 text-gold border border-gold/30'
+                    ? 'bg-warningText/10 text-warningText border border-warningText/30'
+                    : 'bg-gold/10 text-gold-text border border-gold-text/30'
                 }`}
               >
                 {activeDialog.severity}
               </span>
               <button
+                type="button"
                 onClick={closeDialog}
                 aria-label="Close dialog"
-                className="text-ink-400 hover:text-ink-100 text-sm font-bold p-1 rounded focus:ring-2 focus:ring-gold"
+                className="text-ink-400 hover:text-ink-100 text-sm font-bold p-1 rounded"
               >
                 <CloseIcon className="text-sm" />
               </button>
@@ -199,8 +169,8 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
 
             {/* Validation Error List */}
             {activeDialog.type === 'VALIDATION' && activeDialog.errors && (
-              <div className="bg-ink border border-amber-900/50 rounded-lg p-3 space-y-2">
-                <p className="text-xs font-bold text-amber-400 uppercase tracking-wide">The following issues must be resolved:</p>
+              <div className="bg-ink border border-warningText/40 rounded-lg p-3 space-y-2">
+                <p className="text-xs font-bold text-warningText uppercase tracking-wide">The following issues must be resolved:</p>
                 <ul className="list-disc pl-4 text-xs text-ink-400 space-y-1">
                   {activeDialog.errors.map((err, idx) => (
                     <li key={idx}>{err}</li>
@@ -212,23 +182,26 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
             {/* Actions */}
             <div className="flex justify-end gap-3 pt-2 border-t border-ink-border">
               <button
+                type="button"
                 onClick={() => {
                   if (activeDialog.onCancel) activeDialog.onCancel();
                   closeDialog();
                 }}
-                className="px-4 py-2 text-xs font-bold text-ink-400 bg-ink-raised hover:bg-ink-border rounded-lg focus:ring-2 focus:ring-gold"
+                className="px-4 py-2 text-xs font-bold text-ink-400 bg-ink-raised hover:bg-ink-border rounded-lg"
               >
                 {activeDialog.cancelText || 'Cancel'}
               </button>
               <button
+                ref={primaryButtonRef}
+                type="button"
                 onClick={async () => {
                   if (activeDialog.onConfirm) await activeDialog.onConfirm();
                   closeDialog();
                 }}
-                className={`btn-primary-modal px-4 py-2 text-xs font-bold rounded-lg focus:ring-2 transition-all ${
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${
                   activeDialog.severity === 'DANGER' || activeDialog.severity === 'CRITICAL'
-                    ? 'bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-400'
-                    : 'bg-gold hover:brightness-110 text-ink focus:ring-gold'
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                    : 'bg-gold hover:brightness-110 text-onGold'
                 }`}
               >
                 {activeDialog.confirmText || 'Confirm'}
@@ -238,8 +211,8 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Accessible Toast Container (aria-live) */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm" aria-live="polite">
+      {/* Accessible Toast Container */}
+      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm" role="status" aria-live="polite" aria-atomic="true">
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -254,6 +227,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
             <span className="inline-flex items-center gap-1.5"><CheckIcon className="text-sm" /> {toast.message}</span>
             {toast.actionLabel && (
               <button
+                type="button"
                 onClick={toast.onAction}
                 className="ml-3 underline font-bold hover:text-white"
               >

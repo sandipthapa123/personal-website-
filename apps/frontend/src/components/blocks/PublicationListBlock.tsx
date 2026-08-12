@@ -1,5 +1,6 @@
 import React from 'react';
 import { DownloadIcon } from '../ui/Icon';
+import { Badge, Card, EmptyState, Section, SectionHeading, slugifyId } from '../ui/primitives';
 
 export interface PublicationListProps {
   heading?: string;
@@ -18,77 +19,87 @@ export interface PublicationListProps {
   }>;
 }
 
-export const PublicationListBlock: React.FC<PublicationListProps> = ({ heading, items = [] }) => (
-  <section className="space-y-6">
-    {heading && (
-      <h2 className="font-serif-display text-2xl sm:text-3xl font-semibold text-ink-100 tracking-tight">{heading}</h2>
-    )}
-    <div className="space-y-4">
-      {items.map((pub, idx) => (
-        <article
-          key={idx}
-          className="p-6 bg-ink-elevated border border-ink-border rounded-2xl space-y-3 hover:border-emerald-700/40 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 transition-all duration-200"
-        >
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            {(pub.journal || pub.publisher) && (
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-                {pub.journal || pub.publisher}
-              </span>
-            )}
-            {pub.type && (
-              <span className="px-2 py-0.5 bg-emerald-500/15 text-emerald-300 text-[10px] font-bold rounded uppercase tracking-wider">
-                {pub.type}
-              </span>
-            )}
-          </div>
+export const PublicationListBlock: React.FC<PublicationListProps> = ({ heading, items = [] }) => {
+  const headingId = heading ? slugifyId(heading, 'publications') : undefined;
 
-          <h3 className="text-lg font-semibold text-ink-100 leading-snug">
-            {pub.url ? (
-              <a
-                href={pub.url}
-                className="hover:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded transition-colors"
-              >
-                {pub.title}
-              </a>
-            ) : (
-              pub.title
-            )}
-          </h3>
+  return (
+    <Section labelledBy={headingId} className="space-y-7">
+      {heading && <SectionHeading id={headingId} title={heading} />}
 
-          {pub.authors && pub.authors.length > 0 && (
-            <p className="text-xs text-ink-400">Authors: {pub.authors.join(', ')}</p>
-          )}
+      {items.length === 0 ? (
+        <EmptyState
+          title="No publications listed yet"
+          description="Journal articles, chapters and papers will be listed here with full citations."
+          icon={<span className="text-lg">§</span>}
+        />
+      ) : (
+        <ul className="m-0 list-none space-y-5 p-0">
+          {items.map((pub, idx) => (
+            <Card as="li" key={idx} className="edge-lit space-y-3">
+              {(pub.journal || pub.publisher || pub.type || pub.year) && (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {(pub.journal || pub.publisher) && (
+                    <span className="text-xs font-bold uppercase tracking-wider text-successText">
+                      {pub.journal || pub.publisher}
+                      {pub.year ? ` · ${pub.year}` : ''}
+                    </span>
+                  )}
+                  {pub.type && <Badge tone="success">{pub.type}</Badge>}
+                </div>
+              )}
 
-          {pub.citationApa && (
-            <div className="p-3 bg-ink rounded-lg text-[11px] font-mono text-ink-400 border border-ink-border leading-relaxed">
-              APA: {pub.citationApa}
-            </div>
-          )}
+              <h3 className="text-lg font-semibold leading-snug text-ink-100 text-pretty">
+                {pub.url ? (
+                  <a href={pub.url} className="rounded transition-colors hover:text-successText">
+                    {pub.title}
+                  </a>
+                ) : (
+                  pub.title
+                )}
+              </h3>
 
-          <div className="flex items-center gap-4 flex-wrap pt-1">
-            {pub.doi && (
-              <a
-                href={`https://doi.org/${pub.doi}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-gold hover:brightness-110 font-semibold transition-colors"
-              >
-                DOI: {pub.doi}
-              </a>
-            )}
-            {pub.pdfUrl && (
-              <a
-                href={pub.pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 font-semibold transition-colors"
-              >
-                <DownloadIcon className="text-xs" /> Download PDF
-              </a>
-            )}
-          </div>
-        </article>
-      ))}
-    </div>
-  </section>
-);
+              {pub.authors && pub.authors.length > 0 && (
+                <p className="text-xs text-ink-400">
+                  <span className="font-semibold">Authors:</span> {pub.authors.join(', ')}
+                </p>
+              )}
+
+              {pub.citationApa && (
+                <p className="rounded-lg border border-ink-border bg-ink p-3 font-mono text-[11px] leading-relaxed text-ink-400">
+                  <span className="font-sans font-bold uppercase tracking-wider">APA</span> {pub.citationApa}
+                </p>
+              )}
+
+              {(pub.doi || pub.pdfUrl) && (
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1">
+                  {pub.doi && (
+                    <a
+                      href={`https://doi.org/${pub.doi}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-[44px] items-center gap-1.5 rounded text-xs font-semibold text-gold-text transition hover:brightness-110"
+                    >
+                      DOI: {pub.doi}
+                      <span className="sr-only">(opens in a new tab)</span>
+                    </a>
+                  )}
+                  {pub.pdfUrl && (
+                    <a
+                      href={pub.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-[44px] items-center gap-1.5 rounded text-xs font-semibold text-errorText transition hover:brightness-110"
+                    >
+                      <DownloadIcon className="text-xs" aria-hidden="true" /> Download PDF
+                      <span className="sr-only">(PDF, opens in a new tab)</span>
+                    </a>
+                  )}
+                </div>
+              )}
+            </Card>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+};

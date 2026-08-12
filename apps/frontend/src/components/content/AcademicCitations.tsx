@@ -46,18 +46,18 @@ export const AcademicCitations: React.FC<AcademicCitationsProps> = ({
   return (
     <section className="p-6 bg-ink-elevated border border-ink-border rounded-2xl my-8 space-y-4">
       <h3 className="font-serif-display text-base font-semibold text-ink-100 flex items-center gap-2">
-        <CapIcon className="text-gold text-lg" /> Citation Generator &amp; Academic Export
+        <CapIcon className="text-gold-text text-lg" /> Citation Generator &amp; Academic Export
       </h3>
       <div className="space-y-3 text-xs sm:text-sm">
         {(Object.keys(citations) as Array<keyof typeof citations>).map((fmt) => (
           <div key={fmt} className="p-3 bg-ink border border-ink-border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="font-bold text-gold mr-2">{fmt}:</span>
+              <span className="font-bold text-gold-text mr-2">{fmt}:</span>
               <span className="font-mono text-ink-400">{citations[fmt]}</span>
             </div>
             <button
               onClick={() => handleCopy(fmt)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-gold text-ink rounded font-medium hover:brightness-110 transition-all self-start sm:self-auto flex-shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-gold text-onGold rounded font-medium hover:brightness-110 transition-all self-start sm:self-auto flex-shrink-0"
             >
               {copiedFormat === fmt ? (<><CheckIcon className="text-xs" /> Copied</>) : 'Copy'}
             </button>

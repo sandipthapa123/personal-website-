@@ -1,5 +1,6 @@
 import React from 'react';
 import { CalendarIcon, ClockIcon } from '../ui/Icon';
+import { Badge, EmptyState, MetaItem, MetaRow, Section, SectionHeading, slugifyId } from '../ui/primitives';
 
 export interface ArticleListProps {
   heading?: string;
@@ -21,74 +22,78 @@ export interface ArticleListProps {
   }>;
 }
 
-export const ArticleListBlock: React.FC<ArticleListProps> = ({ heading, description, items = [] }) => (
-  <section className="space-y-6">
-    {(heading || description) && (
-      <div className="space-y-2">
-        {heading && <h2 className="font-serif-display text-2xl sm:text-3xl font-semibold text-ink-100 tracking-tight">{heading}</h2>}
-        {description && <p className="text-sm text-ink-400">{description}</p>}
-      </div>
-    )}
-    <div className="divide-y divide-ink-border">
-      {items.map((article, idx) => (
-        <article
-          key={idx}
-          className="group py-5 first:pt-0 last:pb-0 space-y-3"
-        >
-          {/* Category/Tags */}
-          {(article.category || (article.tags && article.tags.length > 0)) && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {article.category && (
-                <span className="px-2 py-0.5 bg-gold/10 text-gold text-[10px] font-bold rounded uppercase tracking-wider">
-                  {article.category}
-                </span>
-              )}
-              {article.tags?.map((tag, i) => (
-                <span key={i} className="px-2 py-0.5 bg-ink-elevated text-ink-400 text-[10px] rounded">
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          )}
+export const ArticleListBlock: React.FC<ArticleListProps> = ({ heading, description, items = [] }) => {
+  const headingId = heading ? slugifyId(heading, 'articles') : undefined;
 
-          <h3 className="text-lg font-semibold text-ink-100 group-hover:text-gold transition-colors leading-snug">
-            {article.url || article.slug ? (
-              <a
-                href={article.url || `/${article.slug}`}
-                className="focus:outline-none focus:ring-2 focus:ring-gold rounded"
+  return (
+    <Section labelledBy={headingId} className="space-y-7">
+      {heading && <SectionHeading id={headingId} title={heading} description={description} />}
+
+      {items.length === 0 ? (
+        <EmptyState
+          title="No articles published yet"
+          description="Essays and articles will be listed here once they go live."
+          icon={<span className="text-lg">✎</span>}
+        />
+      ) : (
+        <ul className="m-0 list-none divide-y divide-ink-border p-0">
+          {items.map((article, idx) => {
+            const href = article.url || (article.slug ? `/${article.slug}` : undefined);
+
+            return (
+              <li
+                key={idx}
+                className="group relative -mx-4 rounded-2xl px-4 py-6 transition-colors first:pt-0 last:pb-0 hover:bg-ink-elevated/60 focus-within:bg-ink-elevated/60"
               >
-                {article.title}
-              </a>
-            ) : (
-              article.title
-            )}
-          </h3>
+                <div className="space-y-3">
+                  {(article.category || (article.tags && article.tags.length > 0)) && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {article.category && <Badge>{article.category}</Badge>}
+                      {article.tags?.map((tag, i) => (
+                        <Badge key={i} tone="neutral">
+                          #{tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
 
-          {article.summary && (
-            <p className="text-sm text-ink-400 leading-relaxed line-clamp-2">{article.summary}</p>
-          )}
+                  <h3 className="text-lg font-semibold leading-snug text-ink-100 transition-colors group-hover:text-gold-text text-pretty sm:text-xl">
+                    {href ? (
+                      <a href={href} className="rounded outline-offset-4 before:absolute before:inset-0 before:content-['']">
+                        {article.title}
+                      </a>
+                    ) : (
+                      article.title
+                    )}
+                  </h3>
 
-          {/* Meta row */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-ink-400/80 font-medium">
-            {article.authorName && (
-              <span className="text-ink-400 font-semibold">{article.authorName}</span>
-            )}
-            {article.publishedBs && (
-              <span className="inline-flex items-center gap-1"><CalendarIcon className="text-[10px]" /> {article.publishedBs}</span>
-            )}
-            {article.publishedAd && <span>({article.publishedAd})</span>}
-            {article.timeNpt && <span>{article.timeNpt}</span>}
-            {article.readingTime && (
-              <span className="inline-flex items-center gap-1"><ClockIcon className="text-[10px]" /> {article.readingTime} min read</span>
-            )}
-            {article.wordCount && <span>{article.wordCount.toLocaleString('en-US')} words</span>}
-            {article.views && (
-              <span className="text-ink-400/60">{article.views.toLocaleString('en-US')} views</span>
-            )}
-          </div>
+                  {article.summary && (
+                    <p className="line-clamp-2 text-sm leading-relaxed text-ink-400">{article.summary}</p>
+                  )}
 
-        </article>
-      ))}
-    </div>
-  </section>
-);
+                  <MetaRow>
+                    {article.authorName && <MetaItem emphasis>{article.authorName}</MetaItem>}
+                    {article.publishedBs && (
+                      <MetaItem icon={<CalendarIcon className="text-[10px]" />}>{article.publishedBs}</MetaItem>
+                    )}
+                    {article.publishedAd && <MetaItem>({article.publishedAd})</MetaItem>}
+                    {article.timeNpt && <MetaItem>{article.timeNpt}</MetaItem>}
+                    {typeof article.readingTime === 'number' && article.readingTime > 0 && (
+                      <MetaItem icon={<ClockIcon className="text-[10px]" />}>{article.readingTime} min read</MetaItem>
+                    )}
+                    {typeof article.wordCount === 'number' && article.wordCount > 0 && (
+                      <MetaItem>{article.wordCount.toLocaleString('en-US')} words</MetaItem>
+                    )}
+                    {typeof article.views === 'number' && article.views > 0 && (
+                      <MetaItem>{article.views.toLocaleString('en-US')} views</MetaItem>
+                    )}
+                  </MetaRow>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Section>
+  );
+};

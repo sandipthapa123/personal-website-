@@ -15,7 +15,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language = 'javascri
         <span>{language}</span>
         <button
           onClick={() => navigator.clipboard?.writeText(code)}
-          className="inline-flex items-center gap-1.5 hover:text-gold transition-colors"
+          className="inline-flex items-center gap-1.5 hover:text-gold-text transition-colors rounded"
           aria-label="Copy code"
         >
           <CopyIcon className="text-xs" /> Copy
