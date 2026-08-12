@@ -157,6 +157,40 @@ export class UniversalContentService {
   // UNIVERSAL CONTENT CRUD
   // ----------------------------------------------------
 
+  /**
+   * Maps the camelCase sort keys the admin console and public API send onto real
+   * database columns. Anything unrecognised falls back to `updated_at` — without
+   * this whitelist an unknown key reaches Prisma's `orderBy` verbatim and throws,
+   * which surfaced as a 500 on every content list (and so an empty admin table).
+   */
+  private static readonly SORTABLE_COLUMNS: Record<string, string> = {
+    updatedAt: 'updated_at',
+    updated_at: 'updated_at',
+    createdAt: 'created_at',
+    created_at: 'created_at',
+    publishedAt: 'published_at',
+    published_at: 'published_at',
+    scheduledAt: 'scheduled_at',
+    scheduled_at: 'scheduled_at',
+    title: 'title',
+    slug: 'slug',
+    status: 'status',
+    locale: 'locale',
+    views: 'views',
+    wordCount: 'word_count',
+    word_count: 'word_count',
+    readingTime: 'reading_time',
+    reading_time: 'reading_time',
+    contentType: 'content_type',
+    content_type: 'content_type',
+  };
+
+  private resolveOrderBy(sortBy?: string, sortOrder?: string) {
+    const column = UniversalContentService.SORTABLE_COLUMNS[sortBy || ''] || 'updated_at';
+    const direction = String(sortOrder).toLowerCase() === 'asc' ? 'asc' : 'desc';
+    return { [column]: direction };
+  }
+
   async searchContent(query: any) {
     const { type, contentType, status, includeDeleted, page = 1, limit = 20, sortBy = 'updated_at', sortOrder = 'desc', query: searchQ } = query;
     const effectiveType = type || contentType;
@@ -174,15 +208,22 @@ export class UniversalContentService {
       where.deleted_at = { not: null };
     }
     if (searchQ) {
-      where.title = { contains: searchQ };
+      where.OR = [
+        { title: { contains: searchQ } },
+        { summary: { contains: searchQ } },
+        { slug: { contains: searchQ } },
+      ];
     }
+
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.min(200, Math.max(1, Number(limit) || 20));
 
     const total = await this.prisma.universalContent.count({ where });
     const items = await this.prisma.universalContent.findMany({
       where,
-      skip: (page - 1) * limit,
-      take: limit,
-      orderBy: { [sortBy]: sortOrder },
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+      orderBy: this.resolveOrderBy(sortBy, sortOrder),
       include: {
         categories: { include: { category: true } },
         tags: { include: { tag: true } }
@@ -192,9 +233,9 @@ export class UniversalContentService {
     return {
       items: items.map(i => this.mapPrismaToDto(i)),
       total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit) || 1,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit) || 1,
     };
   }
 
@@ -262,6 +303,9 @@ export class UniversalContentService {
   }
 
   async updateContent(id: string, dto: Partial<IUniversalContentItem>) {
+    const existing = await this.prisma.universalContent.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException(`Content item with ID "${id}" not found.`);
+
     const data: any = {};
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.slug !== undefined) data.slug = await this.resolveSlug(dto.slug, dto.title, id);
@@ -274,14 +318,35 @@ export class UniversalContentService {
     if (dto.status !== undefined) {
       data.status = dto.status;
       if (dto.status === 'PUBLISHED') {
-        data.published_at = new Date();
+        // Keep the original publication date across later edits — only stamp it the
+        // first time an item actually goes live.
+        if (!existing.published_at) data.published_at = new Date();
+      } else if (dto.status === 'DRAFT' || dto.status === 'ARCHIVED') {
+        // Unpublishing must clear the publication date, otherwise the item keeps
+        // advertising a published date the public site no longer honours.
+        data.published_at = null;
+      }
+      if (dto.status !== 'SCHEDULED') {
+        data.scheduled_at = null;
       }
     }
-    
+
+    // The editor posts the whole item on save; every field it can change has to be
+    // persisted here or the change is silently dropped (content type, locale and
+    // visibility edits used to disappear on save for exactly this reason).
+    if (dto.contentTypes !== undefined && dto.contentTypes.length > 0) data.content_type = dto.contentTypes[0];
+    if (dto.slugMode !== undefined) data.slug_mode = dto.slugMode;
+    if (dto.locale !== undefined) data.locale = dto.locale;
+    if (dto.visibility !== undefined) data.visibility = dto.visibility;
+    if (dto.password !== undefined) data.password = dto.password || null;
+    if (dto.isSticky !== undefined) data.is_sticky = !!dto.isSticky;
+    if (dto.allowComments !== undefined) data.allow_comments = dto.allowComments !== false;
+    if (dto.postFormat !== undefined) data.post_format = dto.postFormat;
+
     // Convert objects to JSON strings
     if (dto.seoMetadata) data.seo_metadata = JSON.stringify(dto.seoMetadata);
     if (dto.customFields) data.custom_fields = JSON.stringify(dto.customFields);
-    
+
     if (dto.scheduledAt) data.scheduled_at = new Date(dto.scheduledAt);
 
     const updated = await this.prisma.universalContent.update({
@@ -333,8 +398,15 @@ export class UniversalContentService {
     delete data.created_at;
     delete data.updated_at;
     data.title = data.title + ' (Copy)';
-    data.slug = data.slug + '-copy';
+    // Uniquified rather than a bare '-copy' suffix, which collided on the second
+    // duplicate of the same item and failed the whole request.
+    data.slug = await this.slugGenerator.ensureUniqueSlug(slugify(existing.slug + '-copy'), existing.tenant_id);
     data.status = 'DRAFT';
+    data.published_at = null;
+    data.scheduled_at = null;
+    data.deleted_at = null;
+    data.views = 0;
+    data.version = 1;
     const created = await this.prisma.universalContent.create({ data });
     return this.mapPrismaToDto(created);
   }
@@ -361,16 +433,41 @@ export class UniversalContentService {
   // DYNAMIC CONTENT TYPES
   // ----------------------------------------------------
 
+  /** The content types the admin console ships navigation and editor entries for. */
+  static readonly SYSTEM_CONTENT_TYPES = [
+    'Article', 'Poem', 'Research', 'Publication', 'Project', 'Portfolio', 'News',
+    'Event', 'Resource', 'Download', 'Announcement', 'Testimonial', 'FAQ', 'Page',
+  ];
+
+  /** Live per-type counts of non-deleted content, keyed by content type name. */
+  private async countByContentType(): Promise<Record<string, number>> {
+    const grouped = await this.prisma.universalContent.groupBy({
+      by: ['content_type'],
+      where: { deleted_at: null },
+      _count: { _all: true },
+    });
+
+    const counts: Record<string, number> = {};
+    UniversalContentService.SYSTEM_CONTENT_TYPES.forEach((t) => { counts[t] = 0; });
+    grouped.forEach((row) => { counts[row.content_type] = row._count._all; });
+    return counts;
+  }
+
   async getContentTypes() {
-    // This is fixed in this version.
-    return [
-      { id: 'type-1', name: 'Article', slug: 'article', isSystem: true, count: 0 },
-      { id: 'type-2', name: 'Poem', slug: 'poem', isSystem: true, count: 0 },
-      { id: 'type-3', name: 'Research', slug: 'research', isSystem: true, count: 0 },
-      { id: 'type-4', name: 'Publication', slug: 'publication', isSystem: true, count: 0 },
-      { id: 'type-5', name: 'Event', slug: 'event', isSystem: true, count: 0 },
-      { id: 'type-6', name: 'Page', slug: 'page', isSystem: true, count: 0 },
-    ];
+    const counts = await this.countByContentType();
+    const systemTypes = UniversalContentService.SYSTEM_CONTENT_TYPES;
+
+    // Any type present in the data but not in the system list was registered by an
+    // administrator as a custom type — surface it so it stays manageable.
+    const customTypes = Object.keys(counts).filter((name) => !systemTypes.includes(name));
+
+    return [...systemTypes, ...customTypes].map((name, index) => ({
+      id: `type-${index + 1}`,
+      name,
+      slug: slugify(name),
+      isSystem: systemTypes.includes(name),
+      count: counts[name] || 0,
+    }));
   }
 
   async registerContentType(name: string, description?: string) {
@@ -381,8 +478,46 @@ export class UniversalContentService {
   // STATS & ACTIVITY
   // ----------------------------------------------------
 
+  /**
+   * Live counts backing the admin dashboard tiles and every sidebar badge
+   * (`Articles (1)` and friends). Trashed items are excluded everywhere except
+   * the dedicated `trash` figure, so the numbers agree with what the tables list.
+   */
   async getContentStats() {
-    return { total: await this.prisma.universalContent.count(), published: await this.prisma.universalContent.count({ where: { status: 'PUBLISHED' }}) };
+    const active = { deleted_at: null };
+
+    const [total, published, drafts, review, scheduled, archived, trash, categoriesCount, tagsCount, aggregates, byType] =
+      await Promise.all([
+        this.prisma.universalContent.count({ where: active }),
+        this.prisma.universalContent.count({ where: { ...active, status: 'PUBLISHED' } }),
+        this.prisma.universalContent.count({ where: { ...active, status: 'DRAFT' } }),
+        this.prisma.universalContent.count({ where: { ...active, status: 'REVIEW' } }),
+        this.prisma.universalContent.count({ where: { ...active, status: 'SCHEDULED' } }),
+        this.prisma.universalContent.count({ where: { ...active, status: 'ARCHIVED' } }),
+        this.prisma.universalContent.count({ where: { deleted_at: { not: null } } }),
+        this.prisma.category.count(),
+        this.prisma.tag.count(),
+        this.prisma.universalContent.aggregate({
+          where: active,
+          _sum: { views: true, word_count: true },
+        }),
+        this.countByContentType(),
+      ]);
+
+    return {
+      total,
+      published,
+      drafts,
+      review,
+      scheduled,
+      archived,
+      trash,
+      categoriesCount,
+      tagsCount,
+      totalViews: aggregates._sum.views || 0,
+      totalWords: aggregates._sum.word_count || 0,
+      byType,
+    };
   }
 
   async getRecentActivity(limit: number) {
@@ -409,15 +544,99 @@ export class UniversalContentService {
   }
   
   async exportContent(format: string, types?: string[]) {
-      return [];
+    const where: any = { deleted_at: null };
+    if (types && types.length > 0) where.content_type = { in: types };
+
+    const items = (
+      await this.prisma.universalContent.findMany({
+        where,
+        orderBy: { updated_at: 'desc' },
+        include: { categories: { include: { category: true } }, tags: { include: { tag: true } } },
+      })
+    ).map((i) => this.mapPrismaToDto(i));
+
+    if (format !== 'csv') return items;
+
+    const columns = ['id', 'title', 'slug', 'contentTypes', 'status', 'locale', 'publishedAt', 'updatedAt'];
+    const escapeCell = (value: unknown) => {
+      const str = Array.isArray(value) ? value.join('|') : value === null || value === undefined ? '' : String(value);
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    return [
+      columns.join(','),
+      ...items.map((item) => columns.map((c) => escapeCell((item as any)[c])).join(',')),
+    ].join('\n');
   }
-  
+
+  /** Imports items by slug: existing slugs are skipped so a re-run is non-destructive. */
   async importContent(items: any[]) {
-      return { success: true, count: 0 };
+    let imported = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const raw of items || []) {
+      try {
+        const title = (raw?.title || '').trim();
+        if (!title) { skipped++; continue; }
+
+        const candidateSlug = raw.slug ? slugify(raw.slug) : slugify(title);
+        const clash = await this.prisma.universalContent.findUnique({ where: { slug: candidateSlug } });
+        if (clash) { skipped++; continue; }
+
+        await this.createContent({
+          title,
+          slug: candidateSlug,
+          summary: raw.summary || '',
+          content: raw.content || '',
+          contentTypes: raw.contentTypes?.length ? raw.contentTypes : [raw.contentType || 'Article'],
+          locale: raw.locale || 'en',
+          status: raw.status || 'DRAFT',
+          visibility: raw.visibility || 'PUBLIC',
+          seoMetadata: raw.seoMetadata,
+          customFields: raw.customFields,
+        });
+        imported++;
+      } catch (err) {
+        skipped++;
+        errors.push(`${raw?.title || 'untitled'}: ${(err as Error).message}`);
+      }
+    }
+
+    return { imported, skipped, errors };
   }
-  
+
+  /**
+   * Applies one action across many items. Runs per-item rather than as a single
+   * `updateMany` so publish/unpublish reuse the same date-stamping rules as a
+   * single-item action and one bad id cannot fail the whole batch.
+   */
   async bulkOperation(operation: string, ids: string[]) {
-      return { processed: 0, failed: 0 };
+    const targetIds = Array.isArray(ids) ? ids.filter(Boolean) : [];
+    let processed = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const id of targetIds) {
+      try {
+        switch (operation) {
+          case 'publish': await this.publishContent(id); break;
+          case 'unpublish': await this.unpublishContent(id); break;
+          case 'archive': await this.archiveContent(id); break;
+          case 'delete': await this.deleteContent(id); break;
+          case 'restore': await this.restoreContent(id); break;
+          case 'permanent-delete': await this.permanentDeleteContent(id); break;
+          case 'duplicate': await this.duplicateContent(id); break;
+          default: throw new Error(`Unsupported bulk operation "${operation}"`);
+        }
+        processed++;
+      } catch (err) {
+        failed++;
+        errors.push(`${id}: ${(err as Error).message}`);
+      }
+    }
+
+    return { processed, failed, errors };
   }
 
   private mapPrismaToDto(item: any): IUniversalContentItem {

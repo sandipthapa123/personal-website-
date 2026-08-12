@@ -28,10 +28,50 @@ export class SearchService {
       }
     } catch (err) {
       console.error('Search failed', err);
-      // Let it fail gracefully
+      // Fall through to the live content query below.
     }
 
-    return [];
+    // The SearchIndex table is only populated by explicit indexEntity() calls, so on
+    // this deployment it is empty and site search always returned nothing. Query the
+    // published content repository directly as the source of truth.
+    try {
+      const items = await this.prisma.universalContent.findMany({
+        where: {
+          deleted_at: null,
+          status: 'PUBLISHED',
+          visibility: 'PUBLIC',
+          locale,
+          ...(type ? { content_type: type } : {}),
+          OR: [
+            { title: { contains: query } },
+            { summary: { contains: query } },
+            { content: { contains: query } },
+          ],
+        },
+        orderBy: { published_at: 'desc' },
+        take: 25,
+        select: { id: true, title: true, slug: true, summary: true, content_type: true, published_at: true },
+      });
+
+      const urlPrefix: Record<string, string> = {
+        Article: 'articles', Poem: 'poems', Research: 'research', Publication: 'publications',
+        Project: 'projects', Event: 'events', News: 'news', Resource: 'resources', Download: 'downloads',
+      };
+
+      return items.map((i) => ({
+        id: i.id,
+        entity_type: i.content_type,
+        entity_id: i.id,
+        title: i.title,
+        content: i.summary || '',
+        url: `/${urlPrefix[i.content_type] || 'content'}/${i.slug}`,
+        locale,
+        publishedAt: i.published_at,
+      }));
+    } catch (err) {
+      console.error('Content search failed', err);
+      return [];
+    }
   }
 
   async indexEntity(tenantId: string, entityType: string, entityId: string, title: string, content: string, url: string, locale = 'en') {

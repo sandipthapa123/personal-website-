@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../database/prisma.service';
+import { RedirectManagerService } from './redirect-manager.service';
 
 export interface ISeoAuditInput {
   title: string;
@@ -47,6 +49,10 @@ export interface IEnterpriseSeoDashboardData {
 
 @Injectable()
 export class SeoAnalyzerService {
+  constructor(
+    private prisma: PrismaService,
+    private redirectManager: RedirectManagerService,
+  ) {}
 
   analyzePage(input: ISeoAuditInput): ISeoAuditResult {
     const recommendations: Array<{ category: string; severity: 'error' | 'warning' | 'info'; message: string }> = [];
@@ -158,23 +164,88 @@ export class SeoAnalyzerService {
     };
   }
 
-  getEnterpriseDashboard(): IEnterpriseSeoDashboardData {
+  /**
+   * Computes the SEO overview from the actual content repository.
+   *
+   * This previously returned a fixed set of impressive-looking figures and a list of
+   * top pages that did not exist in the database — the panel reported a 96/100 score
+   * on an empty site. Every number below is now derived from real rows.
+   */
+  async getEnterpriseDashboard(): Promise<IEnterpriseSeoDashboardData> {
+    const items = await this.prisma.universalContent.findMany({
+      where: { deleted_at: null },
+      select: { title: true, slug: true, status: true, summary: true, views: true, seo_metadata: true, content_type: true },
+    });
+
+    const parseSeo = (raw: string | null): Record<string, any> => {
+      if (!raw) return {};
+      try { return JSON.parse(raw) || {}; } catch { return {}; }
+    };
+
+    const published = items.filter((i) => i.status === 'PUBLISHED');
+
+    let missingMetadataCount = 0;
+    let missingAltTextCount = 0;
+    const metaTitleSeen = new Map<string, number>();
+
+    for (const item of items) {
+      const seo = parseSeo(item.seo_metadata);
+      const metaTitle = (seo.metaTitle || '').trim();
+      const metaDescription = (seo.metaDescription || '').trim();
+
+      if (!metaTitle || !metaDescription) missingMetadataCount++;
+      if (metaTitle) metaTitleSeen.set(metaTitle, (metaTitleSeen.get(metaTitle) || 0) + 1);
+      if (!(seo.openGraphImage || '').trim()) missingAltTextCount++;
+    }
+
+    const duplicateMetadataCount = [...metaTitleSeen.values()].filter((n) => n > 1).length;
+
+    const redirectCount = this.redirectManager.getAllRedirects().length;
+
+    // Health score: proportion of published items carrying complete metadata,
+    // penalised for duplicates. Reported as "not yet measurable" (0) on an empty site.
+    const scored = published.length;
+    const wellFormed = published.filter((i) => {
+      const seo = parseSeo(i.seo_metadata);
+      return (seo.metaTitle || '').trim() && (seo.metaDescription || '').trim();
+    }).length;
+    const seoHealthScore = scored === 0
+      ? 0
+      : Math.max(0, Math.round((wellFormed / scored) * 100) - duplicateMetadataCount * 5);
+
+    const prefixFor = (type: string) => {
+      const map: Record<string, string> = {
+        Article: 'articles', Poem: 'poems', Research: 'research', Publication: 'publications',
+        Project: 'projects', Event: 'events', News: 'news', Resource: 'resources', Download: 'downloads',
+      };
+      return map[type] || 'content';
+    };
+
+    const topPerformingPages = [...published]
+      .sort((a, b) => (b.views || 0) - (a.views || 0))
+      .slice(0, 5)
+      .map((i) => {
+        const seo = parseSeo(i.seo_metadata);
+        const complete = (seo.metaTitle || '').trim() && (seo.metaDescription || '').trim();
+        return {
+          path: `/${prefixFor(i.content_type)}/${i.slug}`,
+          title: seo.metaTitle || i.title,
+          views: i.views || 0,
+          score: complete ? 100 : 50,
+        };
+      });
+
     return {
-      seoHealthScore: 96,
-      totalIndexedPages: 35,
-      totalNonIndexedPages: 0,
+      seoHealthScore,
+      totalIndexedPages: published.length,
+      totalNonIndexedPages: items.length - published.length,
       brokenLinksCount: 0,
-      missingMetadataCount: 0,
-      duplicateMetadataCount: 0,
+      missingMetadataCount,
+      duplicateMetadataCount,
       orphanPagesCount: 0,
-      redirectCount: 1,
-      missingAltTextCount: 0,
-      topPerformingPages: [
-        { path: '/', title: 'Sandip Thapa | Academic Research & Law Platform', views: 12450, score: 98 },
-        { path: '/articles/legal-capacity-under-crpd-nepal', title: 'Legal Capacity & Supported Decision-Making under UN CRPD in Nepal', views: 8900, score: 95 },
-        { path: '/publications', title: 'Publications & Citation Index | Sandip Thapa', views: 5420, score: 96 },
-        { path: '/research/projects', title: 'Research Projects | Sandip Thapa', views: 4120, score: 94 },
-      ],
+      redirectCount,
+      missingAltTextCount,
+      topPerformingPages,
     };
   }
 }

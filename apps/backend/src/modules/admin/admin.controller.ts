@@ -649,6 +649,22 @@ export class AdminController {
   @ApiOperation({ summary: 'Dashboard Metrics API' })
   async getDashboardMetrics(@Res() res: Response) {
     const nowDual = formatDualCalendarDate(new Date());
+
+    // Every figure below is counted live — these were previously hardcoded zeros,
+    // which is why the dashboard never reflected the database.
+    const publishedOfType = (contentType: string) =>
+      this.prisma.universalContent.count({ where: { deleted_at: null, status: 'PUBLISHED', content_type: contentType } });
+
+    const [totalArticles, publishedResearch, academicPublications, publishedPoems, activeUsers, mediaAssets] =
+      await Promise.all([
+        this.prisma.universalContent.count({ where: { deleted_at: null, content_type: 'Article' } }),
+        publishedOfType('Research'),
+        publishedOfType('Publication'),
+        publishedOfType('Poem'),
+        this.prisma.user.count({ where: { status: 'ACTIVE' } }),
+        this.prisma.mediaFile.count(),
+      ]);
+
     return res.status(HttpStatus.OK).json({
       success: true,
       data: {
@@ -661,12 +677,12 @@ export class AdminController {
           timeNpt: nowDual.nptTimeFormatted,
         },
         metrics: {
-          totalArticles: 0,
-          publishedResearch: 0,
-          academicPublications: 0,
-          publishedPoems: 0,
-          activeUsers: 1,
-          mediaAssets: 0,
+          totalArticles,
+          publishedResearch,
+          academicPublications,
+          publishedPoems,
+          activeUsers,
+          mediaAssets,
         },
       },
     });
@@ -699,19 +715,49 @@ export class AdminController {
 
   @Get('admin/audit-trail')
   @ApiOperation({ summary: 'Audit Trail' })
-  async getAuditTrail(@Res() res: Response) {
+  async getAuditTrail(@Query('limit') limit: string, @Res() res: Response) {
+    const entries = await this.prisma.auditLog.findMany({
+      take: Math.min(200, Math.max(1, parseInt(limit, 10) || 50)),
+      orderBy: { created_at: 'desc' },
+      include: { user: { select: { email: true, first_name: true, last_name: true } } },
+    });
+
     return res.status(HttpStatus.OK).json({
       success: true,
-      data: [],
+      data: entries.map((e) => ({
+        id: e.id,
+        action: e.action,
+        entityType: e.entity_type,
+        entityId: e.entity_id,
+        ipAddress: e.ip_address,
+        createdAt: e.created_at.toISOString(),
+        actor: e.user ? `${e.user.first_name} ${e.user.last_name}`.trim() || e.user.email : 'System',
+      })),
     });
   }
 
   @Get('admin/search')
   @ApiOperation({ summary: 'Admin Search' })
   async adminSearch(@Query('q') q: string, @Res() res: Response) {
+    const term = (q || '').trim();
+    if (!term) {
+      return res.status(HttpStatus.OK).json({ success: true, data: { query: '', results: [] } });
+    }
+
+    const { items } = await this.contentService.searchContent({ query: term, limit: 20 });
+
     return res.status(HttpStatus.OK).json({
       success: true,
-      data: { query: q || '', results: [] },
+      data: {
+        query: term,
+        results: items.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          type: (item.contentTypes || [])[0] || 'Content',
+          status: item.status,
+          url: `/admin/editor?edit=${item.id}`,
+        })),
+      },
     });
   }
 

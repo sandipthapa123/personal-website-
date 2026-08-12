@@ -6,8 +6,13 @@ import { cache } from 'react';
 
 const getBackendRenderSchema = cache(async () => {
   try {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000/api/v1';
-    const res = await fetch(`${apiBase}/renderer/page?slug=/`);
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000/api/v1').replace(/\/+$/, '');
+    const res = await fetch(`${apiBase}/renderer/page?slug=/`, {
+      // The homepage is entirely admin-driven. Without this, Next.js applies its
+      // default `force-cache`, statically renders the page at build time and serves
+      // it with s-maxage=1y — so anything published afterwards never appeared.
+      cache: 'no-store',
+    });
     if (!res.ok) return null;
     const json = await res.json();
     return json.data || json;

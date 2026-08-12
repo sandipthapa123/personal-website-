@@ -4,6 +4,7 @@ import { UniversalContentService } from '../content/universal-content.service';
 import { TenantConfigService } from '../config/tenant-config.service';
 import { IPageRenderSchema, IBlockInstance } from '@cms/shared-types';
 import { ContentStatus } from '@cms/constants';
+import { formatDualCalendarDate } from '@cms/utilities';
 
 @Injectable()
 export class RendererService {
@@ -53,6 +54,27 @@ export class RendererService {
     private universalContentService: UniversalContentService,
     private configService: TenantConfigService,
   ) {}
+
+  /**
+   * Bikram Sambat rendering of a real publication date. Returns undefined when the
+   * item has no publication date, so the frontend simply omits the field rather
+   * than showing an invented one.
+   */
+  private toBs(publishedAt?: string | Date | null): string | undefined {
+    if (!publishedAt) return undefined;
+    try {
+      return formatDualCalendarDate(publishedAt).bsFormatted;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private toAd(publishedAt?: string | Date | null): string | undefined {
+    if (!publishedAt) return undefined;
+    const date = new Date(publishedAt);
+    if (isNaN(date.getTime())) return undefined;
+    return date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
 
   async getRenderSchema(tenantId: string, slug: string, lang = 'en'): Promise<any> {
     return this.renderPageBySlug(tenantId, slug, lang);
@@ -398,11 +420,11 @@ export class RendererService {
                   title: it.title,
                   slug: it.slug,
                   summary: it.summary || it.content,
-                  publishedBs: '2083 Shrawan 17',
-                  publishedAd: it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '1 August 2026',
-                  readingTime: it.readingTime || 7,
-                  wordCount: it.wordCount || 1420,
-                  views: it.views || 3420,
+                  publishedBs: this.toBs(it.publishedAt),
+                  publishedAd: this.toAd(it.publishedAt),
+                  readingTime: it.readingTime,
+                  wordCount: it.wordCount,
+                  views: it.views,
                   categories: it.categories,
                   tags: it.tags,
                   url: `/${slug}/${it.slug}`,
@@ -583,11 +605,11 @@ export class RendererService {
                   title: it.title,
                   slug: it.slug,
                   summary: it.summary,
-                  publishedBs: '2083 Shrawan 15',
-                  publishedAd: it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '30 July 2026',
-                  readingTime: it.readingTime || 9,
-                  wordCount: it.wordCount || 2150,
-                  views: it.views || 4890,
+                  publishedBs: this.toBs(it.publishedAt),
+                  publishedAd: this.toAd(it.publishedAt),
+                  readingTime: it.readingTime,
+                  wordCount: it.wordCount,
+                  views: it.views,
                   url: `/articles/${it.slug}`,
                 })),
               },
@@ -602,11 +624,11 @@ export class RendererService {
                   title: it.title,
                   slug: it.slug,
                   summary: it.summary,
-                  publishedBs: '2083 Shrawan 17',
-                  publishedAd: it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '1 August 2026',
-                  readingTime: it.readingTime || 7,
-                  wordCount: it.wordCount || 1420,
-                  views: it.views || 3420,
+                  publishedBs: this.toBs(it.publishedAt),
+                  publishedAd: this.toAd(it.publishedAt),
+                  readingTime: it.readingTime,
+                  wordCount: it.wordCount,
+                  views: it.views,
                   categories: it.categories,
                   tags: it.tags,
                   url: `/articles/${it.slug}`,
@@ -656,8 +678,8 @@ export class RendererService {
                   slug: it.slug,
                   summary: it.summary || it.content,
                   collection: it.series || (it.categories && it.categories[0]) || 'Nepalese Contemporary Poetry Collection',
-                  publishedBs: '2083 Shrawan 10',
-                  publishedAd: it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '25 July 2026',
+                  publishedBs: this.toBs(it.publishedAt),
+                  publishedAd: this.toAd(it.publishedAt),
                   url: `/poems/${it.slug}`,
                 })),
               },

@@ -78,7 +78,7 @@ export class SeoController {
   @Get('seo/dashboard')
   @ApiOperation({ summary: 'Get Enterprise SEO Health Dashboard metrics' })
   async getDashboard() {
-    const data = this.seoAnalyzer.getEnterpriseDashboard();
+    const data = await this.seoAnalyzer.getEnterpriseDashboard();
     return {
       success: true,
       data,

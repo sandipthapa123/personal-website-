@@ -1,9 +1,23 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, HttpStatus, Res } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, HttpStatus, Res, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
+import { PolicyGuard } from '../permissions/policy.guard';
+import { RequirePolicy } from '../permissions/policy.decorator';
+import { PERMISSION_ACTIONS } from '@cms/constants';
 import { UniversalContentService, IUniversalContentItem } from './universal-content.service';
 
+/**
+ * Content repository API — the admin console is its only HTTP consumer; the public
+ * site renders through RendererService in-process. Every route is therefore behind
+ * authentication: these endpoints expose drafts, recycle-bin items and post
+ * passwords, and previously allowed anyone on the internet to create, publish and
+ * permanently delete content. PolicyGuard is a no-op on routes without a
+ * @RequirePolicy, so reads need a valid session but no specific permission.
+ */
 @ApiTags('Universal Content Management System')
+@ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'), PolicyGuard)
 @Controller('content')
 export class UniversalContentController {
   constructor(private contentService: UniversalContentService) {}
@@ -87,6 +101,7 @@ export class UniversalContentController {
   }
 
   @Post('types')
+  @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Create new custom administrator-defined Content Type' })
   async registerContentType(@Body() body: { name: string; description?: string }) {
     const created = await this.contentService.registerContentType(body.name, body.description);
@@ -110,6 +125,7 @@ export class UniversalContentController {
   }
 
   @Post('categories')
+  @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Create new Master Category' })
   async createCategory(@Body() body: any) {
     const created = await this.contentService.createCategory(body);
@@ -117,6 +133,7 @@ export class UniversalContentController {
   }
 
   @Put('categories/:id')
+  @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Update Master Category & Propagate Name Changes' })
   async updateCategory(@Param('id') id: string, @Body() body: any) {
     const updated = await this.contentService.updateCategory(id, body);
@@ -124,6 +141,7 @@ export class UniversalContentController {
   }
 
   @Delete('categories/:id')
+  @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Delete Master Category' })
   async deleteCategory(@Param('id') id: string) {
     const deleted = await this.contentService.deleteCategory(id);
@@ -131,6 +149,7 @@ export class UniversalContentController {
   }
 
   @Post('categories/merge')
+  @RequirePolicy(PERMISSION_ACTIONS.SETTINGS_MANAGE)
   @ApiOperation({ summary: 'Merge Duplicate Categories into Single Master Category' })
   async mergeCategories(@Body() body: { targetId: string; sourceIds: string[] }) {
     const merged = await this.contentService.mergeCategories(body.targetId, body.sourceIds);
@@ -150,17 +169,29 @@ export class UniversalContentController {
 
   @Get('recycle-bin')
   @ApiOperation({ summary: 'Get soft-deleted items in Recycle Bin' })
-  async getRecycleBin() {
-    const result = await this.contentService.searchContent({ status: 'RECYCLE_BIN', includeDeleted: true, limit: 100 });
-    // Fallback: get all deleted
-    const allContent = await this.contentService.getAllContent({ includeDeleted: true });
-    const allDeleted = allContent.items?.filter((i: any) => i.isDeleted) || [];
-    return { success: true, data: { items: allDeleted, total: allDeleted.length } };
+  async getRecycleBin(@Query('page') page?: string, @Query('limit') limit?: string) {
+    // `status: 'RECYCLE_BIN'` already restricts the query to soft-deleted rows, so the
+    // result is used directly — the previous client-side filter over an unfiltered,
+    // default-paginated fetch could only ever find trashed items inside the first page.
+    const result = await this.contentService.searchContent({
+      status: 'RECYCLE_BIN',
+      includeDeleted: true,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 100,
+      sortBy: 'updatedAt',
+      sortOrder: 'desc',
+    });
+
+    return {
+      success: true,
+      data: { items: result.items, total: result.total, page: result.page, totalPages: result.totalPages },
+    };
   }
 
   // ─── BULK OPERATIONS ─────────────────────────────────────────────────────────
 
   @Post('bulk')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_PUBLISH)
   @ApiOperation({ summary: 'Execute bulk publish, unpublish, archive, delete, restore, permanent-delete, or export' })
   async bulkOperation(
     @Body() body: {
@@ -186,6 +217,7 @@ export class UniversalContentController {
   // ─── EXPORT / IMPORT ─────────────────────────────────────────────────────────
 
   @Post('export')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_READ)
   @ApiOperation({ summary: 'Export content as JSON, CSV, or Markdown' })
   async exportContent(@Body() body: { format?: 'json' | 'csv' | 'markdown'; types?: string[] }) {
     const data = await this.contentService.exportContent(body.format || 'json', body.types);
@@ -193,6 +225,7 @@ export class UniversalContentController {
   }
 
   @Post('import')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_CREATE)
   @ApiOperation({ summary: 'Import content records (bulk create)' })
   async importContent(@Body() body: { items: Partial<IUniversalContentItem>[] }) {
     const result = await this.contentService.importContent(body.items || []);
@@ -202,6 +235,7 @@ export class UniversalContentController {
   // ─── SCHEDULE PROCESSING ─────────────────────────────────────────────────────
 
   @Post('process-scheduled')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_PUBLISH)
   @ApiOperation({ summary: 'Process all scheduled content items that are due for publishing' })
   async processScheduled() {
     const count = await this.contentService.processScheduledPublishing();
@@ -218,6 +252,7 @@ export class UniversalContentController {
   }
 
   @Post()
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_CREATE)
   @ApiOperation({ summary: 'Create Single Source of Truth Content Record' })
   async createContent(@Body() body: Partial<IUniversalContentItem>) {
     const created = await this.contentService.createContent(body as IUniversalContentItem);
@@ -225,6 +260,7 @@ export class UniversalContentController {
   }
 
   @Put(':id')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_EDIT)
   @ApiOperation({ summary: 'Update Content Record across all Module Views' })
   async updateContent(@Param('id') id: string, @Body() body: Partial<IUniversalContentItem>) {
     const updated = await this.contentService.updateContent(id, body);
@@ -232,6 +268,7 @@ export class UniversalContentController {
   }
 
   @Delete(':id')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_DELETE)
   @ApiOperation({ summary: 'Soft-delete Content Item to Recycle Bin' })
   async deleteContent(@Param('id') id: string) {
     const deleted = await this.contentService.deleteContent(id);
@@ -239,6 +276,7 @@ export class UniversalContentController {
   }
 
   @Post(':id/restore')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_EDIT)
   @ApiOperation({ summary: 'Restore Soft-deleted Content Item from Recycle Bin' })
   async restoreContent(@Param('id') id: string) {
     const restored = await this.contentService.restoreContent(id);
@@ -246,6 +284,7 @@ export class UniversalContentController {
   }
 
   @Delete(':id/permanent')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_DELETE)
   @ApiOperation({ summary: 'Permanently Purge Content Item (cannot be undone)' })
   async permanentDeleteContent(@Param('id') id: string) {
     const purged = await this.contentService.permanentDeleteContent(id);
@@ -253,6 +292,7 @@ export class UniversalContentController {
   }
 
   @Post(':id/publish')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_PUBLISH)
   @ApiOperation({ summary: 'Publish a content item (DRAFT → PUBLISHED)' })
   async publishContent(@Param('id') id: string) {
     const updated = await this.contentService.publishContent(id);
@@ -260,6 +300,7 @@ export class UniversalContentController {
   }
 
   @Post(':id/unpublish')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_PUBLISH)
   @ApiOperation({ summary: 'Unpublish a content item (PUBLISHED → DRAFT)' })
   async unpublishContent(@Param('id') id: string) {
     const updated = await this.contentService.unpublishContent(id);
@@ -267,6 +308,7 @@ export class UniversalContentController {
   }
 
   @Post(':id/archive')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_EDIT)
   @ApiOperation({ summary: 'Archive a content item (any status → ARCHIVED)' })
   async archiveContent(@Param('id') id: string) {
     const updated = await this.contentService.archiveContent(id);
@@ -274,6 +316,7 @@ export class UniversalContentController {
   }
 
   @Post(':id/duplicate')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_CREATE)
   @ApiOperation({ summary: 'Duplicate/Clone a content item as a new DRAFT' })
   async duplicateContent(@Param('id') id: string) {
     const copy = await this.contentService.duplicateContent(id);
@@ -281,6 +324,7 @@ export class UniversalContentController {
   }
 
   @Post(':id/schedule')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_PUBLISH)
   @ApiOperation({ summary: 'Schedule a content item for future publishing' })
   async scheduleContent(@Param('id') id: string, @Body() body: { scheduledAt: string }) {
     if (!body.scheduledAt) {
@@ -300,6 +344,7 @@ export class UniversalContentController {
   }
 
   @Post(':id/revisions/:revId/restore')
+  @RequirePolicy(PERMISSION_ACTIONS.PAGES_EDIT)
   @ApiOperation({ summary: 'Restore a specific revision of a content item' })
   async restoreRevision(@Param('id') id: string, @Param('revId') revId: string) {
     const restored = await this.contentService.restoreRevision(id, revId);

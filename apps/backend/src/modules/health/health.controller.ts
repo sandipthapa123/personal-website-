@@ -8,6 +8,18 @@ import * as os from 'os';
 export class HealthController {
   constructor(private prisma: PrismaService) {}
 
+  /** Derives the engine from the live connection string rather than reporting a
+   *  fixed name — this used to always claim "SQLite" regardless of the real database. */
+  private detectDatabaseEngine(): string {
+    const url = process.env.DATABASE_URL || '';
+    if (url.startsWith('mysql')) return 'MySQL';
+    if (url.startsWith('postgres')) return 'PostgreSQL';
+    if (url.startsWith('file:') || url.startsWith('sqlite')) return 'SQLite';
+    if (url.startsWith('sqlserver')) return 'SQL Server';
+    if (url.startsWith('mongodb')) return 'MongoDB';
+    return 'unknown';
+  }
+
   @Get()
   @ApiOperation({ summary: 'Operational health checks for the database, storage, RAM & CPU' })
   async checkHealth() {
@@ -34,7 +46,7 @@ export class HealthController {
         database: {
           status: dbStatus,
           responseTimeMs: dbResponseMs,
-          engine: 'SQLite',
+          engine: this.detectDatabaseEngine(),
         },
         cache: {
           status: 'not_configured',

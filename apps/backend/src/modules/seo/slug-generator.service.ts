@@ -289,29 +289,49 @@ export class SlugGeneratorService {
       .join('');
   }
 
+  /**
+   * Returns a slug that collides with nothing, suffixing `-1`, `-2`, … as needed.
+   *
+   * Both the `page` and `universalContent` tables are checked: content slugs carry a
+   * global UNIQUE constraint, and checking only `page` (as this once did) meant
+   * collisions were never detected — so saving a second item with an existing title,
+   * or duplicating an item twice, failed with a unique-constraint 500.
+   */
   async ensureUniqueSlug(slug: string, tenantId = 'default-tenant-id', excludeId?: string): Promise<string> {
-    let uniqueSlug = slug;
+    const base = slug || 'untitled';
+    let uniqueSlug = base;
     let counter = 1;
 
     try {
       while (true) {
-        const existing = await this.prisma.page.findFirst({
-          where: {
-            tenant_id: tenantId,
-            slug: uniqueSlug,
-            ...(excludeId ? { id: { not: excludeId } } : {}),
-          },
-        });
+        const [pageClash, contentClash] = await Promise.all([
+          this.prisma.page.findFirst({
+            where: {
+              tenant_id: tenantId,
+              slug: uniqueSlug,
+              ...(excludeId ? { id: { not: excludeId } } : {}),
+            },
+            select: { id: true },
+          }),
+          this.prisma.universalContent.findFirst({
+            where: {
+              slug: uniqueSlug,
+              ...(excludeId ? { id: { not: excludeId } } : {}),
+            },
+            select: { id: true },
+          }),
+        ]);
 
-        if (!existing) {
+        if (!pageClash && !contentClash) {
           break;
         }
 
-        uniqueSlug = `${slug}-${counter}`;
+        uniqueSlug = `${base}-${counter}`;
         counter++;
       }
     } catch (err) {
-      // In-memory fallback
+      // Database unavailable — fall back to the candidate slug and let the unique
+      // constraint be the final arbiter rather than looping forever.
     }
 
     return uniqueSlug;
