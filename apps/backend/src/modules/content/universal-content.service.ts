@@ -252,9 +252,15 @@ export class UniversalContentService {
     return this.mapPrismaToDto(item);
   }
 
+  /**
+   * Public lookup by slug. Soft-deleted items are excluded: every list query
+   * filters on `deleted_at`, but this one did not, so an item moved to the
+   * Recycle Bin vanished from all listings while its own URL kept serving it to
+   * the public.
+   */
   async getContentBySlug(slug: string) {
-    const item = await this.prisma.universalContent.findUnique({
-      where: { slug: slug.toLowerCase() },
+    const item = await this.prisma.universalContent.findFirst({
+      where: { slug: slug.toLowerCase(), deleted_at: null },
       include: { categories: { include: { category: true } }, tags: { include: { tag: true } } }
     });
     if (!item) throw new NotFoundException(`Content item with slug "${slug}" not found.`);

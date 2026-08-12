@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UniversalContentService } from '../content/universal-content.service';
 
@@ -61,142 +61,280 @@ export interface IMenuSchema {
   updatedAt: string;
 }
 
-@Injectable()
-export class NavigationService {
-  private menus: Map<string, IMenuSchema> = new Map();
-  private versionHistory: Map<string, Array<{ version: number; snapshot: IMenuSchema; timestamp: string }>> = new Map();
+/** Default seed content — only ever written to the database once, the first time
+ * a given menu location has no rows yet. After that, everything is DB-driven. */
+const DEFAULT_PRIMARY_HEADER_ITEMS: Array<Omit<IMenuItem, 'id' | 'active'>> = [
+  { title: 'Home', targetType: 'internal_page', targetUrl: '/', order: 0 },
+  {
+    title: 'About',
+    targetType: 'internal_page',
+    targetUrl: '/about',
+    order: 1,
+    children: [
+      { title: 'Biography', targetType: 'internal_page', targetUrl: '/about/biography', order: 0 } as IMenuItem,
+      { title: 'Education', targetType: 'internal_page', targetUrl: '/about/education', order: 1 } as IMenuItem,
+      { title: 'Experience', targetType: 'internal_page', targetUrl: '/about/experience', order: 2 } as IMenuItem,
+      { title: 'CV / Resume', targetType: 'internal_page', targetUrl: '/about/resume', order: 3 } as IMenuItem,
+    ],
+  },
+  {
+    title: 'Articles',
+    targetType: 'dynamic_route',
+    targetUrl: '/articles',
+    order: 2,
+    children: [
+      { title: 'All Articles', targetType: 'internal_page', targetUrl: '/articles', order: 0 } as IMenuItem,
+      { title: 'Categories', targetType: 'internal_page', targetUrl: '/articles/categories', order: 1 } as IMenuItem,
+      { title: 'Tags', targetType: 'internal_page', targetUrl: '/articles/tags', order: 2 } as IMenuItem,
+    ],
+  },
+  {
+    title: 'Research',
+    targetType: 'dynamic_route',
+    targetUrl: '/research',
+    order: 3,
+    children: [
+      { title: 'Research Projects', targetType: 'internal_page', targetUrl: '/research/projects', order: 0 } as IMenuItem,
+      { title: 'Working Papers', targetType: 'internal_page', targetUrl: '/research/working-papers', order: 1 } as IMenuItem,
+      { title: 'Policy Briefs', targetType: 'internal_page', targetUrl: '/research/policy-briefs', order: 2 } as IMenuItem,
+    ],
+  },
+  {
+    title: 'Publications',
+    targetType: 'dynamic_route',
+    targetUrl: '/publications',
+    order: 4,
+    children: [
+      { title: 'Journal Articles', targetType: 'internal_page', targetUrl: '/publications/journal-articles', order: 0 } as IMenuItem,
+      { title: 'Book Chapters & Books', targetType: 'internal_page', targetUrl: '/publications/books', order: 1 } as IMenuItem,
+    ],
+  },
+  { title: 'Poems & Literature', targetType: 'internal_page', targetUrl: '/poems', order: 5 },
+  { title: 'Contact', targetType: 'internal_page', targetUrl: '/contact', order: 6 },
+] as Array<Omit<IMenuItem, 'id' | 'active'>>;
 
+const DEFAULT_FOOTER_ITEMS: Array<Omit<IMenuItem, 'id' | 'active'>> = [
+  { title: 'Biography', targetType: 'internal_page', targetUrl: '/about/biography', order: 0 },
+  { title: 'Privacy Policy', targetType: 'internal_page', targetUrl: '/privacy', order: 1 },
+  { title: 'Terms of Service', targetType: 'internal_page', targetUrl: '/terms', order: 2 },
+  { title: 'Accessibility Statement (WCAG 2.2 AAA)', targetType: 'internal_page', targetUrl: '/accessibility-statement', order: 3 },
+];
+
+@Injectable()
+export class NavigationService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private universalContentService: UniversalContentService,
     private configService: TenantConfigService,
-  ) {
-    this.seedDefaultMenus();
+  ) {}
+
+  async onModuleInit() {
+    try {
+      await this.ensureDefaultMenus();
+    } catch {
+      // Tenant/DB may not be ready at boot (e.g. first-ever migration run) — the
+      // lazy getMenuByLocation() fallback below covers this case too.
+    }
   }
 
-  private seedDefaultMenus() {
-    const primaryHeaderItems: IMenuItem[] = [
-      { id: 'mi-home', title: 'Home', targetType: 'internal_page', targetId: 'page-home', targetUrl: '/', active: true, order: 0 },
-      {
-        id: 'mi-about',
-        title: 'About',
-        targetType: 'internal_page',
-        targetId: 'page-about',
-        targetUrl: '/about',
-        active: true,
-        order: 1,
-        children: [
-          { id: 'mi-bio', title: 'Biography', targetType: 'internal_page', targetId: 'page-biography', targetUrl: '/about/biography', active: true, order: 0 },
-          { id: 'mi-edu', title: 'Education', targetType: 'internal_page', targetId: 'page-education', targetUrl: '/about/education', active: true, order: 1 },
-          { id: 'mi-exp', title: 'Experience', targetType: 'internal_page', targetId: 'page-experience', targetUrl: '/about/experience', active: true, order: 2 },
-          { id: 'mi-cv', title: 'CV / Resume', targetType: 'internal_page', targetId: 'page-resume', targetUrl: '/about/resume', active: true, order: 3 },
-        ],
-      },
-      {
-        id: 'mi-articles',
-        title: 'Articles', // static label for the dropdown parent
-        targetType: 'dynamic_route',
-        targetUrl: '/articles',
-        active: true,
-        order: 2,
-        children: [
-          { id: 'mi-art-all', title: 'All Articles', targetType: 'internal_page', targetUrl: '/articles', active: true, order: 0 },
-          { id: 'mi-art-cat', title: 'Categories', targetType: 'internal_page', targetUrl: '/articles/categories', active: true, order: 1 },
-          { id: 'mi-art-cat2', title: 'Tags', targetType: 'internal_page', targetUrl: '/articles/tags', active: true, order: 2 },
-        ],
-      },
-      {
-        id: 'mi-research',
-        title: 'Research',
-        targetType: 'dynamic_route',
-        targetUrl: '/research',
-        active: true,
-        order: 3,
-        children: [
-          { id: 'mi-res-proj', title: 'Research Projects', targetType: 'internal_page', targetUrl: '/research/projects', active: true, order: 0 },
-          { id: 'mi-res-wp', title: 'Working Papers', targetType: 'internal_page', targetUrl: '/research/working-papers', active: true, order: 1 },
-          { id: 'mi-res-briefs', title: 'Policy Briefs', targetType: 'internal_page', targetUrl: '/research/policy-briefs', active: true, order: 2 },
-        ],
-      },
-      {
-        id: 'mi-pubs',
-        title: 'Publications',
-        targetType: 'dynamic_route',
-        targetUrl: '/publications',
-        active: true,
-        order: 4,
-        children: [
-          { id: 'mi-pub-journals', title: 'Journal Articles', targetType: 'internal_page', targetUrl: '/publications/journal-articles', active: true, order: 0 },
-          { id: 'mi-pub-books', title: 'Book Chapters & Books', targetType: 'internal_page', targetUrl: '/publications/books', active: true, order: 1 },
-        ],
-      },
-      { id: 'mi-poems', title: 'Poems & Literature', targetType: 'internal_page', targetUrl: '/poems', active: true, order: 5 },
-      { id: 'mi-contact', title: 'Contact', targetType: 'internal_page', targetId: 'page-contact', targetUrl: '/contact', active: true, order: 6 },
-    ];
-
-    const mainHeaderMenu: IMenuSchema = {
-      id: 'menu-primary-header',
-      title: 'Primary Header Navigation',
-      location: 'PRIMARY_HEADER',
-      description: 'Main website top-level header navigation menu',
-      enabled: true,
-      version: 1,
-      items: primaryHeaderItems,
-      updatedAt: new Date().toISOString(),
-    };
-
-    const footerMenu: IMenuSchema = {
-      id: 'menu-footer-links',
-      title: 'Footer Quick Links Menu',
-      location: 'FOOTER',
-      description: 'Footer quick navigation links',
-      enabled: true,
-      version: 1,
-      items: [
-        { id: 'mi-f-bio', title: 'Biography', targetType: 'internal_page', targetId: 'page-biography', targetUrl: '/about/biography', active: true, order: 0 },
-        { id: 'mi-f-priv', title: 'Privacy Policy', targetType: 'internal_page', targetUrl: '/privacy', active: true, order: 1 },
-        { id: 'mi-f-terms', title: 'Terms of Service', targetType: 'internal_page', targetUrl: '/terms', active: true, order: 2 },
-        { id: 'mi-f-access', title: 'Accessibility Statement (WCAG 2.2 AAA)', targetType: 'internal_page', targetUrl: '/accessibility-statement', active: true, order: 3 },
-      ],
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.menus.set(mainHeaderMenu.id, mainHeaderMenu);
-    this.menus.set(footerMenu.id, footerMenu);
+  private async resolveTenantId(): Promise<string> {
+    const tenant =
+      (await this.prisma.tenant.findFirst({ where: { slug: 'default' } })) ??
+      (await this.prisma.tenant.findFirst());
+    if (!tenant) throw new Error('No tenant configured');
+    return tenant.id;
   }
+
+  private async ensureDefaultMenus(): Promise<void> {
+    const tenantId = await this.resolveTenantId();
+
+    const header = await this.prisma.navigationMenu.findFirst({ where: { tenant_id: tenantId, location: 'PRIMARY_HEADER' } });
+    if (!header) {
+      await this.createMenuForTenant(tenantId, {
+        title: 'Primary Header Navigation',
+        location: 'PRIMARY_HEADER',
+        description: 'Main website top-level header navigation menu',
+        items: DEFAULT_PRIMARY_HEADER_ITEMS as IMenuItem[],
+      });
+    }
+
+    const footer = await this.prisma.navigationMenu.findFirst({ where: { tenant_id: tenantId, location: 'FOOTER' } });
+    if (!footer) {
+      await this.createMenuForTenant(tenantId, {
+        title: 'Footer Quick Links Menu',
+        location: 'FOOTER',
+        description: 'Footer quick navigation links',
+        items: DEFAULT_FOOTER_ITEMS as IMenuItem[],
+      });
+    }
+  }
+
+  // ----------------------------------------------------
+  // DB <-> API SHAPE MAPPING
+  // ----------------------------------------------------
+
+  private rowToMenuItem(row: any): IMenuItem {
+    return {
+      id: row.id,
+      title: row.label,
+      targetType: (row.target_type as IMenuItem['targetType']) || 'internal_page',
+      targetUrl: row.url,
+      targetId: row.target_id || undefined,
+      icon: row.icon || undefined,
+      badgeText: row.badge_text || undefined,
+      badgeColor: row.badge_color || undefined,
+      description: row.description || undefined,
+      tooltip: row.tooltip || undefined,
+      cssClass: row.css_class || undefined,
+      target: (row.target as IMenuItem['target']) || '_self',
+      rel: row.rel || undefined,
+      visibilityRules: row.visibility_rules ? this.safeJsonParse(row.visibility_rules) : undefined,
+      scheduledPublishAt: row.scheduled_publish_at ? row.scheduled_publish_at.toISOString() : undefined,
+      active: row.active,
+      parentId: row.parent_id,
+      order: row.order,
+    };
+  }
+
+  private safeJsonParse(value: string): any {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private buildItemTree(rows: any[]): IMenuItem[] {
+    const nodes = new Map<string, IMenuItem>();
+    rows.forEach((row) => nodes.set(row.id, this.rowToMenuItem(row)));
+
+    const roots: IMenuItem[] = [];
+    rows.forEach((row) => {
+      const node = nodes.get(row.id)!;
+      if (row.parent_id && nodes.has(row.parent_id)) {
+        const parent = nodes.get(row.parent_id)!;
+        parent.children = parent.children || [];
+        parent.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    const sortRec = (items: IMenuItem[]) => {
+      items.sort((a, b) => a.order - b.order);
+      items.forEach((i) => i.children && sortRec(i.children));
+    };
+    sortRec(roots);
+
+    return roots;
+  }
+
+  private async createItemsRecursive(menuId: string, items: IMenuItem[], parentId: string | null): Promise<void> {
+    for (const item of items) {
+      const created = await this.prisma.navigationMenuItem.create({
+        data: {
+          menu_id: menuId,
+          parent_id: parentId,
+          label: item.title,
+          url: item.targetUrl,
+          icon: item.icon,
+          target: item.target || '_self',
+          order: item.order,
+          target_type: item.targetType,
+          target_id: item.targetId,
+          badge_text: item.badgeText,
+          badge_color: item.badgeColor,
+          description: item.description,
+          tooltip: item.tooltip,
+          css_class: item.cssClass,
+          rel: item.rel,
+          visibility_rules: item.visibilityRules ? JSON.stringify(item.visibilityRules) : undefined,
+          scheduled_publish_at: item.scheduledPublishAt ? new Date(item.scheduledPublishAt) : undefined,
+          active: item.active ?? true,
+        },
+      });
+      if (item.children && item.children.length > 0) {
+        await this.createItemsRecursive(menuId, item.children, created.id);
+      }
+    }
+  }
+
+  private async loadMenuSchema(menu: any): Promise<IMenuSchema> {
+    const items = await this.prisma.navigationMenuItem.findMany({
+      where: { menu_id: menu.id },
+      orderBy: { order: 'asc' },
+    });
+
+    return {
+      id: menu.id,
+      title: menu.name,
+      location: menu.location,
+      description: menu.description || undefined,
+      enabled: menu.enabled,
+      version: menu.version,
+      items: this.buildItemTree(items),
+      updatedAt: menu.updated_at.toISOString(),
+    };
+  }
+
+  private async createMenuForTenant(
+    tenantId: string,
+    data: { title: string; location: MenuLocation; description?: string; items?: IMenuItem[] },
+  ): Promise<IMenuSchema> {
+    const menu = await this.prisma.navigationMenu.create({
+      data: {
+        tenant_id: tenantId,
+        location: data.location,
+        name: data.title,
+        description: data.description,
+      },
+    });
+
+    if (data.items && data.items.length > 0) {
+      await this.createItemsRecursive(menu.id, data.items, null);
+    }
+
+    return this.loadMenuSchema(menu);
+  }
+
+  // ----------------------------------------------------
+  // targetId hydration (category / content title+URL lookups)
+  // ----------------------------------------------------
 
   private async hydrateMenuItems(items: IMenuItem[]): Promise<IMenuItem[]> {
-    return Promise.all(items.map(async (item) => {
-      const hydratedItem = { ...item };
-      
-      if (item.targetId) {
-        if (item.targetType === 'category') {
-          try {
-            const cat = await this.universalContentService.getCategoryTree();
-            const flat = this.flattenCategories(cat);
-            const found = flat.find(c => c.id === item.targetId);
-            if (found) {
-              hydratedItem.title = found.name;
-              hydratedItem.targetUrl = '/categories/' + found.slug;
-            }
-          } catch (e) {}
-        } else if (item.targetType === 'internal_page' || item.targetType === 'dynamic_route') {
-          try {
-            const found = await this.universalContentService.getContentById(item.targetId);
-            if (found) {
-              hydratedItem.title = found.title;
-              hydratedItem.targetUrl = found.slug === 'home' ? '/' : '/' + found.slug;
-            }
-          } catch (e) {}
+    return Promise.all(
+      items.map(async (item) => {
+        const hydratedItem = { ...item };
+
+        if (item.targetId) {
+          if (item.targetType === 'category') {
+            try {
+              const cat = await this.universalContentService.getCategoryTree();
+              const flat = this.flattenCategories(cat);
+              const found = flat.find((c) => c.id === item.targetId);
+              if (found) {
+                hydratedItem.title = found.name;
+                hydratedItem.targetUrl = '/categories/' + found.slug;
+              }
+            } catch (e) {}
+          } else if (item.targetType === 'internal_page' || item.targetType === 'dynamic_route') {
+            try {
+              const found = await this.universalContentService.getContentById(item.targetId);
+              if (found) {
+                hydratedItem.title = found.title;
+                hydratedItem.targetUrl = found.slug === 'home' ? '/' : '/' + found.slug;
+              }
+            } catch (e) {}
+          }
         }
-      }
 
-      if (item.children && item.children.length > 0) {
-        hydratedItem.children = await this.hydrateMenuItems(item.children);
-      }
+        if (item.children && item.children.length > 0) {
+          hydratedItem.children = await this.hydrateMenuItems(item.children);
+        }
 
-      return hydratedItem;
-    }));
+        return hydratedItem;
+      }),
+    );
   }
 
   private flattenCategories(cats: any[]): any[] {
@@ -210,93 +348,106 @@ export class NavigationService {
     return result;
   }
 
+  // ----------------------------------------------------
+  // PUBLIC API — unchanged signatures, now DB-backed
+  // ----------------------------------------------------
+
   async getMenuByLocation(location: MenuLocation): Promise<IMenuSchema | null> {
-    let matchedMenu: IMenuSchema | null = null;
-    for (const menu of this.menus.values()) {
-      if (menu.location === location && menu.enabled) {
-        matchedMenu = menu;
-        break;
-      }
+    const tenantId = await this.resolveTenantId().catch(() => null);
+    if (!tenantId) return null;
+
+    try {
+      return await this.loadMenuByLocation(tenantId, location);
+    } catch (err) {
+      // A schema/database mismatch here (e.g. a pending migration on the
+      // NavigationMenu table) must not turn a public navigation endpoint into a
+      // 500 — returning null lets the caller fall back to its default menu.
+      // eslint-disable-next-line no-console
+      console.error(`Navigation lookup failed for location "${location}":`, (err as Error).message);
+      return null;
+    }
+  }
+
+  private async loadMenuByLocation(tenantId: string, location: MenuLocation): Promise<IMenuSchema | null> {
+    let menu = await this.prisma.navigationMenu.findFirst({ where: { tenant_id: tenantId, location, enabled: true } });
+
+    if (!menu && (location === 'main' || location === 'PRIMARY_HEADER')) {
+      await this.ensureDefaultMenus();
+      menu = await this.prisma.navigationMenu.findFirst({ where: { tenant_id: tenantId, location: 'PRIMARY_HEADER', enabled: true } });
+    } else if (!menu && (location === 'footer' || location === 'FOOTER')) {
+      await this.ensureDefaultMenus();
+      menu = await this.prisma.navigationMenu.findFirst({ where: { tenant_id: tenantId, location: 'FOOTER', enabled: true } });
     }
 
-    if (!matchedMenu) {
-      if (location === 'main' || location === 'PRIMARY_HEADER') {
-        matchedMenu = this.menus.get('menu-primary-header') || null;
-      } else if (location === 'footer' || location === 'FOOTER') {
-        matchedMenu = this.menus.get('menu-footer-links') || null;
-      }
-    }
+    if (!menu) return null;
 
-    if (matchedMenu) {
-      const hydratedItems = await this.hydrateMenuItems(matchedMenu.items);
-      return { ...matchedMenu, items: hydratedItems };
-    }
-    
-    return null;
+    const schema = await this.loadMenuSchema(menu);
+    schema.items = await this.hydrateMenuItems(schema.items);
+    return schema;
   }
 
   async getAllMenus(): Promise<IMenuSchema[]> {
-    const menus = Array.from(this.menus.values());
-    const hydratedMenus = await Promise.all(menus.map(async m => {
-      const hydratedItems = await this.hydrateMenuItems(m.items);
-      return { ...m, items: hydratedItems };
-    }));
-    return hydratedMenus;
+    const tenantId = await this.resolveTenantId().catch(() => null);
+    if (!tenantId) return [];
+
+    const menus = await this.prisma.navigationMenu.findMany({ where: { tenant_id: tenantId }, orderBy: { created_at: 'asc' } });
+    return Promise.all(
+      menus.map(async (menu) => {
+        const schema = await this.loadMenuSchema(menu);
+        schema.items = await this.hydrateMenuItems(schema.items);
+        return schema;
+      }),
+    );
   }
 
   async getMenuById(id: string): Promise<IMenuSchema> {
-    const menu = this.menus.get(id);
+    const menu = await this.prisma.navigationMenu.findUnique({ where: { id } });
     if (!menu) throw new NotFoundException(`Menu with ID ${id} not found`);
-    
-    const hydratedItems = await this.hydrateMenuItems(menu.items);
-    return { ...menu, items: hydratedItems };
+
+    const schema = await this.loadMenuSchema(menu);
+    schema.items = await this.hydrateMenuItems(schema.items);
+    return schema;
   }
 
   async createMenu(data: { title: string; location: MenuLocation; description?: string; items?: IMenuItem[] }): Promise<IMenuSchema> {
-    const id = `menu-${Date.now()}`;
-    const newMenu: IMenuSchema = {
-      id,
-      title: data.title,
-      location: data.location,
-      description: data.description,
-      enabled: true,
-      version: 1,
-      items: data.items || [],
-      updatedAt: new Date().toISOString(),
-    };
-    this.menus.set(id, newMenu);
-    this.recordVersionSnapshot(newMenu);
-    
-    const hydratedItems = await this.hydrateMenuItems(newMenu.items);
-    return { ...newMenu, items: hydratedItems };
+    const tenantId = await this.resolveTenantId();
+    return this.createMenuForTenant(tenantId, data);
   }
 
   async updateMenu(id: string, updates: Partial<IMenuSchema>): Promise<IMenuSchema> {
-    const existing = this.menus.get(id); // don't hydrate for update base
+    const existing = await this.prisma.navigationMenu.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException(`Menu with ID ${id} not found`);
-    
-    const updated: IMenuSchema = {
-      ...existing,
-      ...updates,
-      version: existing.version + 1,
-      updatedAt: new Date().toISOString(),
-    };
-    this.menus.set(id, updated);
-    this.recordVersionSnapshot(updated);
-    
-    const hydratedItems = await this.hydrateMenuItems(updated.items);
-    return { ...updated, items: hydratedItems };
+
+    const menu = await this.prisma.navigationMenu.update({
+      where: { id },
+      data: {
+        name: updates.title ?? undefined,
+        location: (updates.location as string) ?? undefined,
+        description: updates.description ?? undefined,
+        enabled: updates.enabled ?? undefined,
+        version: existing.version + 1,
+      },
+    });
+
+    if (updates.items) {
+      // Replace the item tree wholesale — simplest correct approach given the
+      // admin UI always sends the full tree on save (matches prior in-memory behavior).
+      await this.prisma.navigationMenuItem.deleteMany({ where: { menu_id: id } });
+      await this.createItemsRecursive(id, updates.items, null);
+    }
+
+    return this.loadMenuSchema(menu);
   }
 
   async deleteMenu(id: string): Promise<{ success: boolean; deletedId: string }> {
-    if (!this.menus.has(id)) throw new NotFoundException(`Menu with ID ${id} not found`);
-    this.menus.delete(id);
+    const existing = await this.prisma.navigationMenu.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException(`Menu with ID ${id} not found`);
+    await this.prisma.navigationMenu.delete({ where: { id } });
     return { success: true, deletedId: id };
   }
 
   async duplicateMenu(id: string): Promise<IMenuSchema> {
-    const source = this.menus.get(id);
-    if (!source) throw new NotFoundException(`Menu with ID ${id} not found`);
+    const source = await this.getMenuById(id);
     return this.createMenu({
       title: `${source.title} (Copy)`,
       location: `${source.location}_COPY` as MenuLocation,
@@ -306,40 +457,30 @@ export class NavigationService {
   }
 
   async addMenuItem(menuId: string, itemData: Omit<IMenuItem, 'id'>): Promise<IMenuSchema> {
-    const menu = this.menus.get(menuId);
+    const menu = await this.prisma.navigationMenu.findUnique({ where: { id: menuId } });
     if (!menu) throw new NotFoundException(`Menu with ID ${menuId} not found`);
-    const newItem: IMenuItem = {
-      ...itemData,
-      id: `mi-${Date.now()}`,
-      order: itemData.order ?? menu.items.length,
-      active: itemData.active ?? true,
-    };
-    menu.items.push(newItem);
-    return this.updateMenu(menuId, { items: menu.items });
+
+    const count = await this.prisma.navigationMenuItem.count({ where: { menu_id: menuId, parent_id: null } });
+    await this.createItemsRecursive(
+      menuId,
+      [{ ...itemData, id: '', order: itemData.order ?? count, active: itemData.active ?? true }],
+      null,
+    );
+
+    return this.loadMenuSchema(menu);
   }
 
   async reorderMenuItems(menuId: string, orderedItemIds: string[]): Promise<IMenuSchema> {
-    const menu = this.menus.get(menuId);
+    const menu = await this.prisma.navigationMenu.findUnique({ where: { id: menuId } });
     if (!menu) throw new NotFoundException(`Menu with ID ${menuId} not found`);
-    
-    const itemMap = new Map(menu.items.map((i) => [i.id, i]));
-    const reordered: IMenuItem[] = [];
 
-    orderedItemIds.forEach((id, index) => {
-      const item = itemMap.get(id);
-      if (item) {
-        item.order = index;
-        reordered.push(item);
-      }
-    });
+    await Promise.all(
+      orderedItemIds.map((itemId, index) =>
+        this.prisma.navigationMenuItem.update({ where: { id: itemId }, data: { order: index } }).catch(() => null),
+      ),
+    );
 
-    menu.items.forEach((item) => {
-      if (!orderedItemIds.includes(item.id)) {
-        reordered.push(item);
-      }
-    });
-
-    return this.updateMenu(menuId, { items: reordered });
+    return this.loadMenuSchema(menu);
   }
 
   async generateMenuFromContentType(contentType: 'pages' | 'articles' | 'research' | 'publications' | 'poems' | 'categories'): Promise<IMenuItem[]> {
@@ -375,7 +516,7 @@ export class NavigationService {
     return items.map((item, idx) => ({
       id: `gen-${contentType}-${idx}`,
       title: item.title,
-      targetType: 'internal_page',
+      targetType: 'internal_page' as const,
       targetUrl: item.url,
       active: true,
       order: idx,
@@ -398,7 +539,7 @@ export class NavigationService {
 
   async getFooterNavigationLegacy() {
     const footer = await this.getMenuByLocation('FOOTER');
-    const tid = 'default-tenant-id';
+    const tid = await this.resolveTenantId().catch(() => 'default-tenant-id');
     const aboutText = await this.configService.getSetting(tid, 'footer', 'aboutText');
     const copyright = await this.configService.getSetting(tid, 'footer', 'copyright');
     const orcid = await this.configService.getSetting(tid, 'profile', 'orcid');
@@ -429,15 +570,5 @@ export class NavigationService {
       socialMedia,
       copyright: copyright || '© 2083 BS / 2026 AD Sandip Thapa. All rights reserved.',
     };
-  }
-
-  private recordVersionSnapshot(menu: IMenuSchema) {
-    const snapshots = this.versionHistory.get(menu.id) || [];
-    snapshots.push({
-      version: menu.version,
-      snapshot: JSON.parse(JSON.stringify(menu)),
-      timestamp: new Date().toISOString(),
-    });
-    this.versionHistory.set(menu.id, snapshots);
   }
 }
