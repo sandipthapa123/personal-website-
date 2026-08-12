@@ -252,6 +252,12 @@ function usePriorityNav(itemCount: number) {
 
     const MORE_BUTTON_WIDTH = 96;
 
+    // The menu is replaced once the CMS navigation resolves (the bundled default
+    // has more entries than the live menu), so cached widths from the previous
+    // menu must be discarded or the split is computed against the wrong items.
+    widthsRef.current = null;
+    setVisibleCount(itemCount);
+
     const measure = () => {
       if (!widthsRef.current) {
         const measured = Array.from(el.querySelectorAll<HTMLElement>('[data-nav-item]'));

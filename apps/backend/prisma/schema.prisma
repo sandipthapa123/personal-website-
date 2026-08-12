@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -36,7 +36,7 @@ model TenantSetting {
   tenant_id String
   category  String // site, theme, seo, security, accessibility, analytics, storage
   key       String
-  value     String
+  value     String @db.Text
   tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
   @@unique([tenant_id, category, key])
@@ -49,7 +49,7 @@ model FeatureFlag {
   name        String
   description String?
   is_enabled  Boolean  @default(false)
-  rules_json  String?
+  rules_json  String?  @db.Text
   updated_at  DateTime @updatedAt
 }
 
@@ -57,10 +57,10 @@ model FeatureFlag {
 // translation API more than once (used by the English slug/translation pipeline).
 model TranslationCache {
   id              String   @id @default(uuid())
-  source_text     String   @unique
+  source_text     String   @unique @db.VarChar(768)
   source_lang     String   @default("auto")
   target_lang     String   @default("en")
-  translated_text String
+  translated_text String   @db.Text
   created_at      DateTime @default(now())
 }
 
@@ -96,7 +96,7 @@ model AuthToken {
   user_id    String
   token_hash String    @unique
   purpose    String // 'PASSWORD_RESET' | 'INVITE' | 'EMAIL_CHANGE'
-  metadata   String? // JSON, e.g. { "newEmail": "..." } for EMAIL_CHANGE
+  metadata   String? @db.Text // JSON, e.g. { "newEmail": "..." } for EMAIL_CHANGE
   expires_at DateTime
   used_at    DateTime?
   created_at DateTime  @default(now())
@@ -181,7 +181,7 @@ model AuditLog {
   action      String
   entity_type String
   entity_id   String?
-  payload     String?
+  payload     String? @db.Text
   ip_address  String?
   created_at  DateTime @default(now())
   user        User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
@@ -196,8 +196,8 @@ model DesignToken {
   tenant_id   String
   category    String // colors, typography, spacing, radius, elevation
   token_name  String // e.g. color-primary-500
-  token_value String
-  dark_value  String?
+  token_value String  @db.Text
+  dark_value  String? @db.Text
   unit        String?
   tenant      Tenant  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 
@@ -213,7 +213,7 @@ model WorkflowDefinition {
   tenant_id   String
   entity_type String // page, blog_post, block
   name        String
-  states_json String // State machine states & transition rules
+  states_json String @db.LongText // State machine states & transition rules
   tenant      Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 }
 
@@ -244,9 +244,9 @@ model BlockDefinition {
   type            String  @unique
   name            String
   category        String
-  prop_schema     String
-  default_props   String
-  allowed_regions String
+  prop_schema     String @db.LongText
+  default_props   String @db.LongText
+  allowed_regions String @db.Text
   blocks          Block[]
 }
 
@@ -255,12 +255,12 @@ model Block {
   tenant_id           String
   block_definition_id String
   name                String
-  json_config         String
-  style_config        String?
-  visibility_config   String?
-  permission_rules    String?
-  animations_config   String?
-  responsive_config   String?
+  json_config         String    @db.LongText
+  style_config        String?   @db.LongText
+  visibility_config   String?   @db.Text
+  permission_rules    String?   @db.Text
+  animations_config   String?   @db.Text
+  responsive_config   String?   @db.Text
   status              String    @default("DRAFT")
   version             Int       @default(1)
   deleted_at          DateTime?
@@ -277,8 +277,8 @@ model BlockVersion {
   id           String   @id @default(uuid())
   block_id     String
   version      Int
-  json_config  String
-  style_config String?
+  json_config  String  @db.LongText
+  style_config String? @db.LongText
   created_by   String?
   created_at   DateTime @default(now())
   block        Block    @relation(fields: [block_id], references: [id], onDelete: Cascade)
@@ -295,7 +295,7 @@ model Page {
   version      Int       @default(1)
   scheduled_at DateTime?
   published_at DateTime?
-  seo_metadata String?
+  seo_metadata String?   @db.Text
   deleted_at   DateTime?
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
@@ -313,7 +313,7 @@ model PageVersion {
   id          String   @id @default(uuid())
   page_id     String
   version     Int
-  layout_json String
+  layout_json String  @db.LongText
   created_by  String?
   created_at  DateTime @default(now())
   page        Page     @relation(fields: [page_id], references: [id], onDelete: Cascade)
@@ -336,27 +336,43 @@ model PageRegionBlock {
 // ----------------------------------------------------
 
 model NavigationMenu {
-  id        String               @id @default(uuid())
-  tenant_id String
-  location  String
-  name      String
-  tenant    Tenant               @relation(fields: [tenant_id], references: [id])
-  items     NavigationMenuItem[]
+  id          String               @id @default(uuid())
+  tenant_id   String
+  location    String
+  name        String
+  description String?              @db.Text
+  enabled     Boolean              @default(true)
+  version     Int                  @default(1)
+  created_at  DateTime             @default(now())
+  updated_at  DateTime             @updatedAt
+  tenant      Tenant               @relation(fields: [tenant_id], references: [id])
+  items       NavigationMenuItem[]
 }
 
 model NavigationMenuItem {
-  id         String               @id @default(uuid())
-  menu_id    String
-  parent_id  String?
-  label      String
-  url        String
-  icon       String?
-  target     String               @default("_self")
-  order      Int
-  visibility String?
-  menu       NavigationMenu       @relation(fields: [menu_id], references: [id], onDelete: Cascade)
-  parent     NavigationMenuItem?  @relation("MenuHierarchy", fields: [parent_id], references: [id])
-  children   NavigationMenuItem[] @relation("MenuHierarchy")
+  id                    String               @id @default(uuid())
+  menu_id               String
+  parent_id             String?
+  label                 String
+  url                   String
+  icon                  String?
+  target                String               @default("_self")
+  order                 Int
+  visibility            String?
+  target_type           String?
+  target_id             String?
+  badge_text            String?
+  badge_color           String?
+  description           String?              @db.Text
+  tooltip               String?
+  css_class             String?
+  rel                   String?
+  visibility_rules      String?              @db.Text
+  scheduled_publish_at  DateTime?
+  active                Boolean              @default(true)
+  menu                  NavigationMenu       @relation(fields: [menu_id], references: [id], onDelete: Cascade)
+  parent                NavigationMenuItem?  @relation("MenuHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
+  children              NavigationMenuItem[] @relation("MenuHierarchy")
 }
 
 model MediaFile {
@@ -369,9 +385,9 @@ model MediaFile {
   storage_key   String   @unique
   folder        String   @default("/")
   dimensions    String?
-  variants_json String?
+  variants_json String?  @db.Text
   alt_text      String?
-  caption       String?
+  caption       String?  @db.Text
   created_at    DateTime @default(now())
 
   tenant         Tenant         @relation(fields: [tenant_id], references: [id])
@@ -388,8 +404,8 @@ model UniversalContent {
   slug                 String  @unique
   slug_mode            String  @default("AUTO")
   title                String
-  summary              String?
-  content              String
+  summary              String? @db.Text
+  content              String  @db.LongText
   cover_image          String?
   content_type         String // 'Article', 'Research', 'Publication', 'Event', 'Poem', 'Project', etc.
   locale               String  @default("en")
@@ -404,9 +420,9 @@ model UniversalContent {
   word_count           Int     @default(0)
   reading_time         Int     @default(1)
 
-  seo_metadata         String? // metaTitle, metaDescription, canonicalUrl, ogImage, jsonLd
-  custom_fields        String? // citations, DOIs, event dates, pdfUrl, partners, externalLinks, timeline
-  accessibility_status String? // score, wcagLevel, compliant
+  seo_metadata         String? @db.Text // metaTitle, metaDescription, canonicalUrl, ogImage, jsonLd
+  custom_fields        String? @db.Text // citations, DOIs, event dates, pdfUrl, partners, externalLinks, timeline
+  accessibility_status String? @db.Text // score, wcagLevel, compliant
 
   version      Int       @default(1)
   published_at DateTime?
@@ -437,13 +453,13 @@ model Category {
   id              String   @id @default(uuid())
   name            String   @unique
   slug            String   @unique
-  description     String?
+  description     String?  @db.Text
   parent_id       String?
   display_order   Int      @default(0)
   icon            String?
   status          String   @default("ACTIVE")
   seo_title       String?
-  seo_description String?
+  seo_description String?  @db.Text
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
@@ -532,8 +548,8 @@ model ContentRevision {
   content_id    String
   version       Int
   title         String
-  content       String
-  snapshot_json String
+  content       String  @db.LongText
+  snapshot_json String  @db.LongText
   created_by    String?
   created_at    DateTime         @default(now())
   content_ref   UniversalContent @relation(fields: [content_id], references: [id], onDelete: Cascade)
@@ -548,9 +564,9 @@ model ContactTicket {
   name       String
   email      String
   subject    String?
-  message    String
+  message    String   @db.Text
   status     String   @default("NEW")
-  metadata   String?
+  metadata   String?  @db.Text
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -561,7 +577,7 @@ model TicketMessage {
   id         String        @id @default(uuid())
   ticket_id  String
   sender     String // 'USER' | 'ADMIN'
-  message    String
+  message    String        @db.Text
   created_at DateTime      @default(now())
   ticket     ContactTicket @relation(fields: [ticket_id], references: [id], onDelete: Cascade)
 }
@@ -576,7 +592,7 @@ model NewsletterSubscriber {
   first_name    String?
   last_name     String?
   status        String   @default("SUBSCRIBED")
-  metadata      String?
+  metadata      String?  @db.Text
   subscribed_at DateTime @default(now())
   updated_at    DateTime @updatedAt
 }
@@ -584,7 +600,7 @@ model NewsletterSubscriber {
 model NewsletterCampaign {
   id           String    @id @default(uuid())
   subject      String
-  html_content String
+  html_content String    @db.LongText
   status       String    @default("DRAFT") // DRAFT, SCHEDULED, SENDING, SENT, FAILED
   recipients   Int       @default(0)
   scheduled_at DateTime?
@@ -602,7 +618,7 @@ model Plugin {
   name         String   @unique
   version      String
   is_active    Boolean  @default(false)
-  config_json  String?
+  config_json  String?  @db.LongText
   installed_at DateTime @default(now())
 }
 
@@ -626,7 +642,7 @@ model SearchIndex {
   entity_type String
   entity_id   String
   title       String
-  content     String
+  content     String   @db.LongText
   locale      String   @default("en")
   url         String
   updated_at  DateTime @updatedAt
